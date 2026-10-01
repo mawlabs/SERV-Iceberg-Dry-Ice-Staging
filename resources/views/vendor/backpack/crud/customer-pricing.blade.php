@@ -8,6 +8,13 @@
 
 @section('content')
 
+    @if(session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
+
     <div class="card">
         <div class="table-responsive">
             <table class="table table-vcenter card-table">
@@ -17,7 +24,7 @@
                     <th>Ice Price</th>
                     <th>Box Price</th>
                     <th>Hazmat Fee</th>
-                    <th>Delivery Fee</th>
+                    <th>Delivery</th>
                     <th>Pickup Fee</th>
                     <th>Other Charges</th>
                     <th width="120">Action</th>
@@ -78,14 +85,25 @@
                                     value="{{ $pricing->hazmat_fee ?? 0 }}">
                             </td>
 
+                            @php
+                                $deliveryMode = $pricing->delivery_mode ?? 'novex';
+                            @endphp
+
                             <td>
+                                <select name="delivery_mode" class="form-control delivery-mode-select">
+                                    <option value="novex" @selected($deliveryMode === 'novex')>Novex rate</option>
+                                    <option value="fixed" @selected($deliveryMode === 'fixed')>Fixed rate</option>
+                                    <option value="none" @selected($deliveryMode === 'none')>No delivery</option>
+                                </select>
                                 <input
                                     type="number"
                                     step="0.01"
-                                    min="0"
+                                    min="0.01"
                                     name="delivery_fee"
-                                    class="form-control"
-                                    value="{{ $pricing->delivery_fee ?? 0 }}">
+                                    class="form-control mt-1 delivery-fee-input"
+                                    placeholder="Amount"
+                                    value="{{ $deliveryMode === 'fixed' ? $pricing->delivery_fee : '' }}"
+                                    @if($deliveryMode !== 'fixed') style="display:none" disabled @endif>
                             </td>
 
                             <td>
@@ -127,6 +145,20 @@
 
     </div>
 
+@endsection
+@section('after_scripts')
+    <script>
+        // The fixed amount only shows (and is only submitted) in Fixed mode.
+        document.querySelectorAll('.delivery-mode-select').forEach(function (select) {
+            select.addEventListener('change', function () {
+                const amount = select.closest('td').querySelector('.delivery-fee-input');
+                const fixed = select.value === 'fixed';
+                amount.style.display = fixed ? '' : 'none';
+                amount.disabled = !fixed;
+                amount.required = fixed;
+            });
+        });
+    </script>
 @endsection
 @section('after_styles')
     <style>

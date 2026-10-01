@@ -410,10 +410,12 @@
                 const liBody = document.getElementById('line-items-body');
                 liBody.innerHTML = '';
                 draft.line_items.forEach((li) => {
+                    // A Delivery row at $0 means Novex couldn't quote it: price needs entering.
+                    const needsPrice = li.description === 'Delivery' && Number(li.unit_price) === 0;
                     liBody.insertAdjacentHTML('beforeend', `
-                <tr>
+                <tr class="${needsPrice ? 'table-warning' : ''}">
                     <td>${li.delivery_date || ''}</td>
-                    <td>${li.description}</td>
+                    <td>${li.description}${needsPrice ? ' <small class="text-danger">(Novex quote unavailable - enter price)</small>' : ''}</td>
                     <td><input type="number" class="form-control form-control-sm line-item-input li-qty" data-id="${li.id}" value="${li.quantity}" min="0"></td>
                     <td><input type="number" class="form-control form-control-sm line-item-input li-price" data-id="${li.id}" value="${li.unit_price}" step="0.01" min="0"></td>
                     <td>${fmt(li.total_price)}</td>

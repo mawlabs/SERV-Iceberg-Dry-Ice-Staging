@@ -12,6 +12,7 @@ use App\Models\InvoiceOrders;
 use App\Models\Order;
 use App\Models\RecurringOrder;
 use App\Mail\ConsolidatedInvoiceMail;
+use App\Services\NovexQuoteService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -127,6 +128,7 @@ class InvoiceGeneratorController extends Controller
     {
         $lineItems = [];
         $orderRefs = [];
+        $customer  = Customer::with('supplyLocation')->find($customerId);
 
         foreach ($orders as $order) {
             $deliveryDate = $order->delivery_date;
@@ -134,7 +136,7 @@ class InvoiceGeneratorController extends Controller
             foreach ($order->items as $item) {
                 $lineItems[] = $this->buildLineItem($item, $pricing, $order->id, $deliveryDate);
             }
-            foreach ($this->buildFeeLineItems($pricing, $order->id, $deliveryDate, $order->pickup_delivery) as $fee) {
+            foreach ($this->buildFeeLineItems($pricing, $customer, $order, $deliveryDate) as $fee) {
                 $lineItems[] = $fee;
             }
 
@@ -155,7 +157,7 @@ class InvoiceGeneratorController extends Controller
             foreach ($parentOrder->items as $item) {
                 $lineItems[] = $this->buildLineItem($item, $pricing, $parentOrder->id, $deliveryDate);
             }
-            foreach ($this->buildFeeLineItems($pricing, $parentOrder->id, $deliveryDate, $parentOrder->pickup_delivery) as $fee) {
+            foreach ($this->buildFeeLineItems($pricing, $customer, $parentOrder, $deliveryDate) as $fee) {
                 $lineItems[] = $fee;
             }
 
@@ -676,26 +678,71 @@ class InvoiceGeneratorController extends Controller
      * no per-order flag today, so it is charged on every order in the
      * invoice when the customer has a non-zero hazmat_fee, matching the
      * previous once-per-invoice behaviour but now itemised per delivery.
+     *
+     * Delivery depends on the customer's delivery_mode (novex when they have
+     * no pricing row): fixed charges their delivery_fee, none charges nothing,
+     * novex quotes it. Pickup orders never get a delivery row.
      */
-    private function buildFeeLineItems($pricing, $orderId, $deliveryDate, $pickupDelivery): array
+    private function buildFeeLineItems($pricing, $customer, $order, $deliveryDate): array
     {
-        if (!$pricing) {
-            return [];
-        }
-
         $fees = [];
+        $orderId = $order->id;
 
-        if (!empty($pricing->hazmat_fee) && (float) $pricing->hazmat_fee != 0) {
+        if ($pricing && !empty($pricing->hazmat_fee) && (float) $pricing->hazmat_fee != 0) {
             $fees[] = $this->feeLineItem('Hazmat Fee', (float) $pricing->hazmat_fee, $orderId, $deliveryDate);
         }
-        if ($pickupDelivery === 'delivery' && !empty($pricing->delivery_fee) && (float) $pricing->delivery_fee != 0) {
-            $fees[] = $this->feeLineItem('Delivery', (float) $pricing->delivery_fee, $orderId, $deliveryDate);
+
+        if ($order->pickup_delivery === 'delivery') {
+            $mode = $pricing->delivery_mode ?? CustomerPricing::DELIVERY_NOVEX;
+
+            if ($mode === CustomerPricing::DELIVERY_FIXED) {
+                if ((float) $pricing->delivery_fee != 0) {
+                    $fees[] = $this->feeLineItem('Delivery', (float) $pricing->delivery_fee, $orderId, $deliveryDate);
+                }
+            } elseif ($mode === CustomerPricing::DELIVERY_NOVEX) {
+                // A $0 Delivery row is added when Novex can't quote, so the
+                // price can be typed into the draft (the UI highlights it).
+                $quote = $this->novexDeliveryQuote($customer, $order);
+                $fees[] = $this->feeLineItem('Delivery', $quote ?? 0.0, $orderId, $deliveryDate);
+            }
         }
-        if ($pickupDelivery === 'pickup' && !empty($pricing->pickup_fee) && (float) $pricing->pickup_fee != 0) {
+
+        if ($order->pickup_delivery === 'pickup' && $pricing && !empty($pricing->pickup_fee) && (float) $pricing->pickup_fee != 0) {
             $fees[] = $this->feeLineItem('Pickup Fee', (float) $pricing->pickup_fee, $orderId, $deliveryDate);
         }
 
         return $fees;
+    }
+
+    /**
+     * Novex delivery quote for an order: from the customer's pickup location
+     * (supply_location_id) to the customer's address, weighed by the dry ice
+     * on the order. Returns null when it can't be quoted.
+     */
+    private function novexDeliveryQuote($customer, $order): ?float
+    {
+        $pickup = $customer?->supplyLocation;
+
+        if (!$pickup || !$customer->address || !$customer->city || !$customer->province || !$customer->postal_code) {
+            return null;
+        }
+
+        $weight = $order->items->filter(fn ($item) => ($item->product->unit ?? null) !== 'box')
+            ->sum('amount_of_items');
+
+        $result = app(NovexQuoteService::class)->quote($pickup, [
+            'name'        => $customer->name,
+            'street'      => $customer->address,
+            'unit'        => '',
+            'city'        => $customer->city,
+            'province'    => $customer->province,
+            'postal_code' => $customer->postal_code,
+            'contact'     => $customer->name ?: 'N/A',
+            'phone'       => $customer->phone ?: 'N/A',
+            'email'       => $customer->email ?: 'N/A',
+        ], (float) $weight);
+
+        return $result['amount'] ?? null;
     }
 
     private function feeLineItem(string $label, float $amount, $orderId, $deliveryDate): array

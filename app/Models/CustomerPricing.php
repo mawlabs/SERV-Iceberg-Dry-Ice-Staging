@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class CustomerPricing extends Model
 {
+    public const DELIVERY_NOVEX = 'novex';
+    public const DELIVERY_FIXED = 'fixed';
+    public const DELIVERY_NONE  = 'none';
+
     protected $table = 'customer_pricing';
 
     protected $fillable = [
@@ -14,6 +18,7 @@ class CustomerPricing extends Model
         'box_price',
         'hazmat_fee',
         'delivery_fee',
+        'delivery_mode',
         'pickup_fee',
         'other_charges',
     ];
