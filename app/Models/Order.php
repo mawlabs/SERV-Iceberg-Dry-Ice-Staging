@@ -18,6 +18,7 @@ class Order extends Model
     const NON_RECURRING = 'non-recurring';
     const COMPLETED = 'completed';
     const VALID = 'valid';
+    const OPEN = 'open';
     const SKIP = 'skip';
     const CANCELLED = 'cancelled';
 

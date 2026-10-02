@@ -80,6 +80,7 @@ class ProcessRecurringOrders extends Command
         $recurringOrdersDue = RecurringOrder::where('scheduled_delivery_date', $twoDaysFromNow)
             ->where('status', 'open')
             ->whereNull('novex_order_id')
+            ->where('push', false) // push=1 with no courier id = already booked by the legacy site (legacy:import)
             ->get();
 
         foreach ($recurringOrdersDue as $recurringOrder) {

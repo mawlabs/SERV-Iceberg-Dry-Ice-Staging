@@ -61,8 +61,8 @@ class OrderCrudController extends CrudController
         CRUD::column('origin')->label('Origin');
         CRUD::column('recurring')->label('Recurring');
 
-        // Sort newest first
-        CRUD::orderBy('id', 'desc');
+        // Sort by delivery date, newest first
+        CRUD::orderBy('delivery_date', 'desc');
     }
 
     public function index()
@@ -124,11 +124,16 @@ class OrderCrudController extends CrudController
         $orders = $ordersQuery->get();
         $recurringOrders = $recurringOrdersQuery->get();
 
-        // Merge and sort by invoice_id
+        // Merge and sort by delivery date, newest first (id breaks ties). Recurring instances
+        // use their own scheduled date, not the parent's template date. Order ids are not a
+        // delivery sequence (imported/legacy orders get ids in import order), so never sort by id/invoice_id.
         $allOrders = collect()
             ->merge($orders)
             ->merge($recurringOrders)
-            ->sortByDesc('invoice_id');
+            ->sortByDesc(function ($o) {
+                $date = $o instanceof RecurringOrder ? $o->scheduled_delivery_date : $o->delivery_date;
+                return [$date ? Carbon::parse($date)->toDateString() : '', $o->id];
+            });
 
         // Manual pagination
         $total = $allOrders->count();
