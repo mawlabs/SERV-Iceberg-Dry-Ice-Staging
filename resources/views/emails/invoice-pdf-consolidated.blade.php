@@ -97,12 +97,19 @@
                 </thead>
                 <tbody>
                 @foreach($lineItems as $item)
+                    @php
+                        // Unit prices can have 3 decimals; drop a trailing zero so $1.95 stays $1.95 and $1.955 shows in full.
+                        $unitPrice = number_format($item->unit_price, 3);
+                        if (substr($unitPrice, -1) === '0') {
+                            $unitPrice = substr($unitPrice, 0, -1);
+                        }
+                    @endphp
                     <tr>
                         <td style="font-family: Helvetica, Arial, sans-serif;font-size: 10px; color:#1A1C21;">{{ $item->delivery_date ? \Carbon\Carbon::parse($item->delivery_date)->format('M d, y') : '' }}</td>
                         <td style="font-family: Helvetica, Arial, sans-serif;font-size: 10px; color:#1A1C21;">{{ $item->order->po ?? '' }}</td>
                         <td style="font-family: Helvetica, Arial, sans-serif;font-size: 10px; color:#1A1C21; text-align:center;">{{ $item->quantity }}</td>
                         <td style="font-family: Helvetica, Arial, sans-serif;font-size: 10px; color:#1A1C21;">{{ $item->description }}</td>
-                        <td style="font-family: Helvetica, Arial, sans-serif;font-size: 10px; color:#1A1C21; text-align:center;">${{ number_format($item->unit_price, 2) }}</td>
+                        <td style="font-family: Helvetica, Arial, sans-serif;font-size: 10px; color:#1A1C21; text-align:center;">${{ $unitPrice }}</td>
                         <td style="font-family: Helvetica, Arial, sans-serif;font-size: 10px; color:#1A1C21; text-align:right;">${{ number_format($item->total_price, 2) }}</td>
                         <td style="font-family: Helvetica, Arial, sans-serif;font-size: 10px; color:#1A1C21; text-align:right;">${{ number_format($item->gst, 2) }}</td>
                         <td style="font-family: Helvetica, Arial, sans-serif;font-size: 10px; color:#1A1C21; text-align:right;">${{ number_format($item->pst, 2) }}</td>

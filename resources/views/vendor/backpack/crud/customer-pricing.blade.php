@@ -58,7 +58,7 @@
                             <td>
                                 <input
                                     type="number"
-                                    step="0.01"
+                                    step="0.001"
                                     min="0"
                                     name="ice_price"
                                     class="form-control"
@@ -68,7 +68,7 @@
                             <td>
                                 <input
                                     type="number"
-                                    step="0.01"
+                                    step="0.001"
                                     min="0"
                                     name="box_price"
                                     class="form-control"
@@ -78,7 +78,7 @@
                             <td>
                                 <input
                                     type="number"
-                                    step="0.01"
+                                    step="0.001"
                                     min="0"
                                     name="hazmat_fee"
                                     class="form-control"
@@ -97,8 +97,8 @@
                                 </select>
                                 <input
                                     type="number"
-                                    step="0.01"
-                                    min="0.01"
+                                    step="0.001"
+                                    min="0.001"
                                     name="delivery_fee"
                                     class="form-control mt-1 delivery-fee-input"
                                     placeholder="Amount"
@@ -109,7 +109,7 @@
                             <td>
                                 <input
                                     type="number"
-                                    step="0.01"
+                                    step="0.001"
                                     min="0"
                                     name="pickup_fee"
                                     class="form-control"
@@ -119,7 +119,7 @@
                             <td>
                                 <input
                                     type="number"
-                                    step="0.01"
+                                    step="0.001"
                                     min="0"
                                     name="other_charges"
                                     class="form-control"

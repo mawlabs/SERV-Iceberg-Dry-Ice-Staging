@@ -417,7 +417,7 @@
                     <td>${li.delivery_date || ''}</td>
                     <td>${li.description}${needsPrice ? ' <small class="text-danger">(Novex quote unavailable - enter price)</small>' : ''}</td>
                     <td><input type="number" class="form-control form-control-sm line-item-input li-qty" data-id="${li.id}" value="${li.quantity}" min="0"></td>
-                    <td><input type="number" class="form-control form-control-sm line-item-input li-price" data-id="${li.id}" value="${li.unit_price}" step="0.01" min="0"></td>
+                    <td><input type="number" class="form-control form-control-sm line-item-input li-price" data-id="${li.id}" value="${li.unit_price}" step="0.001" min="0"></td>
                     <td>${fmt(li.total_price)}</td>
                     <td>${fmt(li.gst)}</td>
                     <td>${fmt(li.pst)}</td>
