@@ -22,9 +22,9 @@
                 <tr>
                     <th>Customer</th>
                     <th>Ice Price</th>
-                    <th>Box Price</th>
+                    {{-- <th>Box Price</th> --}}
                     <th>Hazmat Fee</th>
-                    <th>Delivery</th>
+                    <th width="220">Delivery</th>
                     <th>Pickup Fee</th>
                     <th>Other Charges</th>
                     <th width="120">Action</th>
@@ -65,6 +65,7 @@
                                     value="{{ $pricing->ice_price ?? 0 }}">
                             </td>
 
+                            {{--
                             <td>
                                 <input
                                     type="number"
@@ -74,6 +75,7 @@
                                     class="form-control"
                                     value="{{ $pricing->box_price ?? 0 }}">
                             </td>
+                            --}}
 
                             <td>
                                 <input
@@ -90,20 +92,22 @@
                             @endphp
 
                             <td>
-                                <select name="delivery_mode" class="form-control delivery-mode-select">
-                                    <option value="novex" @selected($deliveryMode === 'novex')>Novex rate</option>
-                                    <option value="fixed" @selected($deliveryMode === 'fixed')>Fixed rate</option>
-                                    <option value="none" @selected($deliveryMode === 'none')>No delivery</option>
-                                </select>
-                                <input
-                                    type="number"
-                                    step="0.001"
-                                    min="0.001"
-                                    name="delivery_fee"
-                                    class="form-control mt-1 delivery-fee-input"
-                                    placeholder="Amount"
-                                    value="{{ $deliveryMode === 'fixed' ? $pricing->delivery_fee : '' }}"
-                                    @if($deliveryMode !== 'fixed') style="display:none" disabled @endif>
+                                <div class="d-flex flex-row">
+                                    <select name="delivery_mode" class="form-control delivery-mode-select">
+                                        <option value="novex" @selected($deliveryMode === 'novex')>Novex rate</option>
+                                        <option value="fixed" @selected($deliveryMode === 'fixed')>Fixed rate</option>
+                                        <option value="none" @selected($deliveryMode === 'none')>No delivery</option>
+                                    </select>
+                                    <input
+                                        type="number"
+                                        step="0.001"
+                                        min="0.001"
+                                        name="delivery_fee"
+                                        class="form-control mt-1 delivery-fee-input"
+                                        placeholder="Amount"
+                                        value="{{ $deliveryMode === 'fixed' ? $pricing->delivery_fee : '' }}"
+                                        @if($deliveryMode !== 'fixed') style="display:none" disabled @endif>
+                                </div>
                             </td>
 
                             <td>

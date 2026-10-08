@@ -17,7 +17,7 @@
 <div class="container-fluid">
 
     <div class="row">
-            <div class="col-md-6">
+            <div class="col-12">
                 <div class="table">
                     <div class="table-header">
                         One Time Orders
@@ -100,7 +100,7 @@
 
             </div>
 
-            <div class="col-md-6">
+            <div class="col-12">
                 <div class="table">
                     <div class="table-header">
                         Recurring Orders
@@ -350,13 +350,13 @@
 
     /* Table wrapper for horizontal scrolling */
     .table-responsive-wrapper {
-        overflow-x: auto;
+        overflow: auto;
         -webkit-overflow-scrolling: touch;
         border-radius: 0 0 8px 8px;
         background: transparent;
         box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         padding: 0px 5px;
-        height: 100%;
+        max-height: 600px;
     }
 
     .table table {

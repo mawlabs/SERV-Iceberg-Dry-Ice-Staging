@@ -299,7 +299,7 @@ class ImportLegacyData extends Command
         // CustomerPricing columns default to 0 and the invoice generator treats 0 as "a price", so the
         // product list price is written explicitly whenever the customer has no per-lb price.
         $icePrice = $ice > 0 ? $ice / 100 : (float) $this->pellets->price;
-        $boxPrice = $ice > 0 ? $ice / 100 : (float) $this->block->price;
+        // $boxPrice = $ice > 0 ? $ice / 100 : (float) $this->block->price;  // one ice_price now applies to all formats
         if ($ice > 0 && ($ice < 50 || $ice > 500)) {
             $this->flag('pricing_suspicious', $legacyId, $c->name, "price_ice={$ice} cents/lb looks unusual: verify");
         }
@@ -312,7 +312,7 @@ class ImportLegacyData extends Command
         $p = CustomerPricing::create([
             'customer_id' => $c->id,
             'ice_price' => $icePrice,
-            'box_price' => $boxPrice,
+            // 'box_price' => $boxPrice,
             'hazmat_fee' => $haz / 100,
             'delivery_fee' => $deliv / 100,
             'delivery_mode' => $mode,
@@ -558,7 +558,7 @@ class ImportLegacyData extends Command
     {
         $p = $this->pricing[(int) $r->customerID] ?? null;
         if ($p) {
-            return (float) ($product->id === $this->pellets->id ? $p->ice_price : $p->box_price);
+            return (float) $p->ice_price;   // one price per customer for all formats
         }
         return (float) $product->price;
     }

@@ -649,10 +649,9 @@ class InvoiceGeneratorController extends Controller
     private function buildLineItem($item, $pricing, $orderId, $deliveryDate = null): array
     {
         if ($pricing) {
-            if ($item->product_id == 1 && $pricing->ice_price !== null) {
+            // One per-lb ice price per customer, for both pellets (1) and blocks (2).
+            if (in_array($item->product_id, [1, 2]) && $pricing->ice_price !== null) {
                 $unitPrice = $pricing->ice_price;
-            } elseif ($item->product_id == 2 && $pricing->box_price !== null) {
-                $unitPrice = $pricing->box_price;
             } else {
                 $unitPrice = $item->unit_price;
             }

@@ -455,7 +455,7 @@ class CustomersCrudController extends CrudController
     {
         $validated = $request->validate([
             'ice_price' => 'nullable|numeric|min:0',
-            'box_price' => 'nullable|numeric|min:0',
+            // 'box_price' => 'nullable|numeric|min:0', // one ice_price now applies to all formats
             'hazmat_fee' => 'nullable|numeric|min:0',
             'delivery_fee' => 'nullable|numeric|min:0',
             'delivery_mode' => 'nullable|in:novex,fixed,none',
@@ -464,7 +464,7 @@ class CustomersCrudController extends CrudController
         ]);
 
         $icePrice = (float)($validated['ice_price'] ?? 0);
-        $boxPrice = (float)($validated['box_price'] ?? 0);
+        // $boxPrice = (float)($validated['box_price'] ?? 0);
         $hazmatFee = (float)($validated['hazmat_fee'] ?? 0);
         $deliveryMode = $validated['delivery_mode'] ?? CustomerPricing::DELIVERY_NOVEX;
         $pickupFee = (float)($validated['pickup_fee'] ?? 0);
@@ -484,7 +484,7 @@ class CustomersCrudController extends CrudController
 
         $total =
             $icePrice +
-            $boxPrice +
+            // $boxPrice +
             $hazmatFee +
             $deliveryFee +
             $pickupFee +
@@ -515,7 +515,7 @@ class CustomersCrudController extends CrudController
             ],
             [
                 'ice_price' => $icePrice,
-                'box_price' => $boxPrice,
+                // 'box_price' => $boxPrice,
                 'hazmat_fee' => $hazmatFee,
                 'delivery_fee' => $deliveryFee,
                 'delivery_mode' => $deliveryMode,

@@ -77,7 +77,7 @@
                     <table>
                         <thead>
                         <tr>
-                            <th>INV #</th>
+                            <th>Order #</th>
                             <th>Customer Name</th>
                             <th>Delivery Date</th>
                             <th>Status</th>
