@@ -812,32 +812,73 @@ class OrderCrudController extends CrudController
     public function paymentRedirect($orderId)
     {
         try {
-            $order = Order::with('invoice')->findOrFail($orderId);
+            $order = Order::with('invoice')->find($orderId);
+
+            if (!$order || !$order->invoice) {
+                \Log::warning('Payment redirect: order or its invoice not found', ['order_id' => $orderId]);
+
+                return view('website.order.payment-result', [
+                    'success' => false,
+                    'heading' => 'Order Not Found',
+                    'message' => 'We could not find this order. If you were expecting to pay for an order, please contact us.',
+                ]);
+            }
+
+            // Never send an already-paid order back to the card form (double charge).
+            if ($order->invoice->payment_status === Invoice::PAID || $order->payment_status === 'paid') {
+                return view('website.order.payment-result', [
+                    'success' => true,
+                    'heading' => 'Already Paid',
+                    'message' => 'This order has already been paid. No further payment is needed.',
+                    'invoice_number' => $order->invoice->invoice_number,
+                ]);
+            }
 
             $paymentParams = $this->generatePaymentParams($order);
 
             return view('website.order.payment-redirect', compact('paymentParams'));
 
-        } catch (\Exception $e) {
-            \Log::error('Payment redirect failed: ' . $e->getMessage());
-            return redirect()->route('home')->with('error', 'Order not found or payment setup failed.');
+        } catch (\Throwable $e) {
+            \Log::error('Payment redirect failed: ' . $e->getMessage(), ['order_id' => $orderId]);
+
+            return view('website.order.payment-result', [
+                'success' => false,
+                'heading' => 'Payment Unavailable',
+                'message' => 'We could not start the payment just now. Your order has been saved. Please try again in a few minutes, or contact us.',
+                'invoice_number' => isset($order) ? optional($order->invoice)->invoice_number : null,
+                'retry_url' => route('payment.redirect', $orderId),
+            ]);
         }
     }
 
     protected function generatePaymentParams($order)
     {
-        $x_login = env('EXACT_LOGIN_ID');
-        $transaction_key = env('EXACT_TRANSACTION_KEY');
-        $payment_url = env('EXACT_PAYMENT_URL');
-        $x_amount = number_format($order->total_cost, 2, '.', '');
-        $x_invoice_num = $order->invoice->invoice_number;
-        $x_description = 'Order #' . $order->id;
-        $x_email = $order->email;
-        $x_first_name = $order->customer_name;
-        $x_return_url = route('payments.callback');
+        return $this->exactFormParams(
+            $order->total_cost,
+            $order->invoice->invoice_number,
+            'Order #' . $order->id,
+            $order->email,
+            $order->customer_name
+        );
+    }
+
+    /**
+     * The signed field set the Exact payment page expects. Keys come from
+     * config (not env(), which is empty once the config is cached); missing
+     * settings fail with a clear error instead of posting a broken form.
+     */
+    protected function exactFormParams($amount, $invoiceNumber, $description, $email, $firstName): array
+    {
+        $x_login = config('services.exact.login');
+        $transaction_key = config('services.exact.transaction_key');
+        $payment_url = config('services.exact.payment_url');
+
+        if (!$x_login || !$transaction_key || !$payment_url) {
+            throw new \RuntimeException('Exact payment gateway is not configured (EXACT_LOGIN_ID, EXACT_TRANSACTION_KEY, EXACT_PAYMENT_URL).');
+        }
+
+        $x_amount = number_format($amount, 2, '.', '');
         $x_fp_sequence = rand(1000, 100000) + 123456;
-
-
         $x_fp_timestamp = time();
 
         $hmac_data = $x_login . "^" . $x_fp_sequence . "^" . $x_fp_timestamp . "^" . $x_amount . "^" . 'CAD';
@@ -848,12 +889,11 @@ class OrderCrudController extends CrudController
             'x_amount' => $x_amount,
             'x_fp_timestamp' => $x_fp_timestamp,
             'x_fp_sequence' => $x_fp_sequence,
-            'x_invoice_num' => $x_invoice_num,
-            'x_description' => $x_description,
-            'x_first_name' => $x_first_name,
-            'x_email' => $x_email,
-//            'x_receipt_link_text' => 'Payment Page',
-            'x_receipt_link_url' => $x_return_url,
+            'x_invoice_num' => $invoiceNumber,
+            'x_description' => $description,
+            'x_first_name' => $firstName,
+            'x_email' => $email,
+            'x_receipt_link_url' => route('payments.callback'),
             'x_receipt_link_method' => 'AUTO-GET',
             'x_currency_code' => 'CAD',
             'x_fp_hash' => $x_fp_hash,
@@ -1015,6 +1055,10 @@ class OrderCrudController extends CrudController
                 return redirect()->back()->with('error', 'Invoice not found');
             }
 
+            if ($invoice->payment_status === Invoice::PAID) {
+                return redirect()->back()->with('error', 'This invoice has already been paid');
+            }
+
             $customerInfo = $this->getCustomerInfo($invoice);
 
             if (!$customerInfo) {
@@ -1039,7 +1083,8 @@ class OrderCrudController extends CrudController
 
             return response($form);
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
+            // (was `catch (Exception ...)` with no import, which never matched anything)
             \Log::error('Error processing payment: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Server error occurred while processing payment');
         }
@@ -1047,47 +1092,13 @@ class OrderCrudController extends CrudController
 
     protected function buildExactPaymentParams($invoice, $customerInfo)
     {
-        $x_login = env('EXACT_LOGIN_ID');
-        $transaction_key = env('EXACT_TRANSACTION_KEY');
-        $payment_url = env('EXACT_PAYMENT_URL');
-        $x_amount = number_format($invoice->total_amount, 2, '.', '');
-        $x_invoice_num = $invoice->invoice_number;
-        $x_description = 'Invoice #' . $invoice->invoice_number;
-        $x_email = $customerInfo->email;
-        $x_first_name = $customerInfo->customer_name;
-        $x_return_url = route('payments.callback'); // You'll need to create this route
-
-//        $x_relay_response = 'TRUE';
-//        $x_receipt_link_method = 'REDIRECT';
-//        $x_receipt_link_url = url(route('payments.callback'));
-
-        $x_fp_sequence = rand(1000, 100000) + 123456;
-        $x_fp_timestamp = time();
-
-        $hmac_data = $x_login . "^" . $x_fp_sequence . "^" . $x_fp_timestamp . "^" . $x_amount . "^" . 'CAD';
-        $x_fp_hash = hash_hmac('MD5', $hmac_data, $transaction_key);
-
-        return [
-            'x_login' => $x_login,
-            'x_amount' => $x_amount,
-            'x_fp_timestamp' => $x_fp_timestamp,
-            'x_fp_sequence' => $x_fp_sequence,
-            'x_invoice_num' => $x_invoice_num,
-            'x_description' => $x_description,
-            'x_first_name' => $x_first_name,
-            'x_email' => $x_email,
-//            'x_receipt_link_text' => 'Payment Page',
-            'x_receipt_link_url' => $x_return_url,
-            'x_receipt_link_method' => 'AUTO-GET',
-            'x_currency_code' => 'CAD',
-            'x_fp_hash' => $x_fp_hash,
-            'x_show_form' => 'PAYMENT_FORM',
-            'x_test_request' => 'False',
-//            'x_relay_response' => $x_relay_response,
-//            'x_receipt_link_method' => $x_receipt_link_method,
-//            'x_receipt_link_url' => $x_receipt_link_url,
-            'payment_url' => $payment_url
-        ];
+        return $this->exactFormParams(
+            $invoice->total_amount,
+            $invoice->invoice_number,
+            'Invoice #' . $invoice->invoice_number,
+            $customerInfo->email,
+            $customerInfo->customer_name
+        );
     }
 
 

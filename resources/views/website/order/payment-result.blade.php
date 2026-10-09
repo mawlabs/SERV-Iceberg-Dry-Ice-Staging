@@ -9,7 +9,7 @@
                         <div class="success-icon mb-4">
                             <i class="la la-check-circle"></i>
                         </div>
-                        <h2 class="text-success mb-3">Payment Successful!</h2>
+                        <h2 class="text-success mb-3">{{ $heading ?? 'Payment Successful!' }}</h2>
                         <p class="lead mb-4">{{ $message }}</p>
 
                         <div class="payment-details">
@@ -34,7 +34,7 @@
                         <div class="error-icon mb-4">
                             <i class="la la-times-circle"></i>
                         </div>
-                        <h2 class="text-danger mb-3">Payment Failed</h2>
+                        <h2 class="text-danger mb-3">{{ $heading ?? 'Payment Failed' }}</h2>
                         <p class="lead mb-4">{{ $message }}</p>
 
                         @if(isset($invoice_number))

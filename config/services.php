@@ -48,6 +48,8 @@ return [
 
     'exact' => [
         'login' => env('EXACT_LOGIN_ID'),
+        'transaction_key' => env('EXACT_TRANSACTION_KEY'),
+        'payment_url' => env('EXACT_PAYMENT_URL'),
         // Secret from the Exact payment page settings; used to verify x_MD5_Hash on the payment callback.
         'response_key' => env('EXACT_RESPONSE_KEY'),
     ],
