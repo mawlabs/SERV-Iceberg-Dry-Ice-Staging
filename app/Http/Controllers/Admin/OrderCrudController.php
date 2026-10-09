@@ -651,6 +651,7 @@ class OrderCrudController extends CrudController
             'tax' => 'nullable|numeric|min:0',
             'total_cost' => 'nullable|numeric|min:0',
             'accept' => 'required|accepted',
+            'submission_token' => 'nullable|string|max:64',
             'items' => 'required|array|min:1',
             'hazmat' => 'nullable|numeric|min:0',
             'items.*.product_id' => 'required|exists:products,id',
@@ -666,6 +667,13 @@ class OrderCrudController extends CrudController
                 'success' => false,
                 'message' => 'We could not calculate the delivery cost for this order. Please go back to the review step and try again, or choose pickup.',
             ], 422);
+        }
+
+        // Same form submitted again (retry after a lost response, double click):
+        // hand back the order that already exists instead of creating a second.
+        $submissionToken = $validated['submission_token'] ?? null;
+        if ($submissionToken && ($existingOrder = Order::where('submission_token', $submissionToken)->first())) {
+            return $this->orderSubmittedResponse($existingOrder);
         }
 
         DB::beginTransaction();
@@ -741,6 +749,7 @@ class OrderCrudController extends CrudController
                 'total_cost' => $totalCost,
                 'origin' => 'online',
                 'hazmat' => $hazmat,
+                'submission_token' => $submissionToken,
             ]);
 
             // Step 4: Create order items
@@ -755,19 +764,18 @@ class OrderCrudController extends CrudController
 
             DB::commit();
 
-            Mail::to($order->email)->send(new OrderPlacedMail($order));
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
 
-//            $order->payment_status = 0;
-//            $order->save();
-
-
+            // Two sends of the same form raced and the other one won the unique token.
+            if ($submissionToken && ($existingOrder = Order::where('submission_token', $submissionToken)->first())) {
+                return $this->orderSubmittedResponse($existingOrder);
+            }
 
             return response()->json([
-                'success' => true,
-                'message' => 'Online Order submitted successfully',
-                'order' => $order->load('items'),
-                'order_id' => $order->id
-            ]);
+                'success' => false,
+                'message' => 'Failed to create order: ' . $e->getMessage()
+            ], 422);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -778,6 +786,26 @@ class OrderCrudController extends CrudController
                 'message' => 'Failed to create order: ' . $e->getMessage()
             ], 422);
         }
+
+        // The order is saved. A mail problem must not turn that into an error
+        // (the customer would retry and order twice), so it is only logged.
+        try {
+            Mail::to($order->email)->send(new OrderPlacedMail($order));
+        } catch (\Throwable $e) {
+            \Log::error('Order confirmation email failed for order ' . $order->id . ': ' . $e->getMessage());
+        }
+
+        return $this->orderSubmittedResponse($order);
+    }
+
+    private function orderSubmittedResponse(Order $order)
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Online Order submitted successfully',
+            'order' => $order->load('items'),
+            'order_id' => $order->id
+        ]);
     }
 
 

@@ -52,7 +52,8 @@ class Order extends Model
         'supplier_id',
         'invoice_id',
         'po',
-        'created_by'
+        'created_by',
+        'submission_token',
     ];
 
     public function scopeToday($query)

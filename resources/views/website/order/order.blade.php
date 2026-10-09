@@ -517,6 +517,7 @@
                 <input type="hidden" id="hidden_tax" name="tax" value="">
                 <input type="hidden" id="hidden_total_cost" name="total_cost" value="">
                 <input type="hidden" id="hidden_supplier_id" name="supplier_id" value="">
+                <input type="hidden" id="hidden_submission_token" name="submission_token" value="">
 
                 <table>
                     <tr>
@@ -1304,6 +1305,32 @@
         }
 
         // 1. Fix the populateReview function to properly handle dynamic products
+        // One random id per order attempt. Re-sending the same form (retry, double click,
+        // lost response) re-sends the same id, so the server returns the order it already
+        // made instead of creating a second one. A new id is made each time the review is
+        // rebuilt, so an edited order is never mistaken for the earlier one.
+        let submissionTokenFallback = null;
+
+        function resetSubmissionToken() {
+            submissionTokenFallback = null;
+            try { sessionStorage.removeItem('orderSubmissionToken'); } catch (e) { /* storage unavailable */ }
+        }
+
+        function getSubmissionToken() {
+            try {
+                const saved = sessionStorage.getItem('orderSubmissionToken');
+                if (saved) return saved;
+            } catch (e) { /* storage unavailable */ }
+
+            if (!submissionTokenFallback) {
+                submissionTokenFallback = (window.crypto && crypto.randomUUID)
+                    ? crypto.randomUUID()
+                    : Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+            }
+            try { sessionStorage.setItem('orderSubmissionToken', submissionTokenFallback); } catch (e) { /* storage unavailable */ }
+            return submissionTokenFallback;
+        }
+
         // Bumped on every review refresh so a slow, older delivery quote can't overwrite a newer one.
         let reviewRun = 0;
 
@@ -1315,6 +1342,7 @@
         function populateReview() {
             console.log('🎯 populateReview() started');
             const run = ++reviewRun;
+            resetSubmissionToken();
 
             const getValue = (id) => document.getElementById(id)?.value.trim() || '';
 
@@ -1709,6 +1737,8 @@
                 });
                 return;
             }
+
+            document.getElementById('hidden_submission_token').value = getSubmissionToken();
 
             // Prepare form data
             const formData = new FormData(this);
