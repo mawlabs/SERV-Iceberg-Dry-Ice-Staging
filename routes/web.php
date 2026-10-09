@@ -134,8 +134,6 @@ Route::get('/test-closest-supplier', [SupplierController::class, 'checkClosestSu
 
 Route::post('/get-delivery-quote', [SupplierController::class, 'getDeliveryQuote'])->middleware('throttle:checkout-quote');
 
-Route::post('/get-novex-quote', [SupplierController::class, 'getNovexQuote']);
-
 // Creates a real (billed) Novex delivery, so admins only; same guard as the admin pages that call it.
 Route::post('/orders/{id}/push-novex', [SupplierController::class, 'pushToNovex'])->middleware('admin');
 

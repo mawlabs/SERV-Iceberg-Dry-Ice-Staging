@@ -1,8 +1,10 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Exceptions\SupplierLookupException;
 use App\Models\Order;
 use App\Services\ClosestSupplierService;
+use App\Services\NovexQuoteService;
 use App\Models\SupplyLocation;
 
 use Illuminate\Http\Request;
@@ -26,12 +28,21 @@ class SupplierController extends Controller
             ], 400);
         }
 
-        $closest = $service->findClosest(
-            $street,
-            $city,
-            $province,
-            true // set false to skip Google API
-        );
+        try {
+            $closest = $service->findClosest(
+                $street,
+                $city,
+                $province,
+                true // set false to skip Google API
+            );
+        } catch (SupplierLookupException $e) {
+            // The lookup itself failed (not "no supplier here"): say so, so the page
+            // doesn't tell the customer we don't deliver to their address.
+            return response()->json([
+                'success' => false,
+                'error' => 'We could not check delivery coverage right now. Please try again in a moment.'
+            ], 503);
+        }
 
         if (!$closest) {
             return response()->json(['message' => 'No supplier found'], 200);
@@ -76,24 +87,15 @@ class SupplierController extends Controller
             $delivery = $validated['delivery'];
             $weight = $validated['weight'];
 
-            // Calculate dimensions based on weight (you can adjust this logic)
-            $dimensions = max(12, ceil($weight / 2)); // Minimum 12 inches
+            // Same Novex request (and 25% markup) the invoice generator uses. It returns
+            // ['error' => ...] for anything that is not a real price, including Novex errors,
+            // timeouts and a zero total.
+            $quoteAmount = app(NovexQuoteService::class)->quote($supplierLocation, $delivery, (float) $weight);
 
-            // Get Novex quote
-            $quoteAmount = $this->getNovexQuote(
-                $supplierLocation,
-                $delivery['postal_code'],
-                1, // delivery type
-                $weight,
-                $dimensions,
-                $delivery
-            );
-
-            if (isset($quoteAmount['error'])) {
+            if (!isset($quoteAmount['amount'])) {
                 return response()->json([
                     'success' => false,
                     'error' => 'Unable to calculate delivery quote at this time',
-                    'data' => $quoteAmount['error'],
                 ], 200);
             }
 
@@ -134,88 +136,6 @@ class SupplierController extends Controller
             ], 500);
         }
     }
-
-    private function getNovexQuote($supplierLocation, $destinationPostal, $deliveryType, $weight, $dimensions, $deliveryDetails)
-    {
-        $orderDetails = [
-            'callerName' => 'Tyler',
-            'reference' => '',
-            'pickup' => [
-                'name' => $supplierLocation->name,
-                'street' => $supplierLocation->address,
-                'unit' => $supplierLocation->unit ?? '',
-                'city' => $supplierLocation->city,
-                'province' => $supplierLocation->province,
-                'postalCode' => $supplierLocation->postal,
-                'country' => 'CAN',
-                'instructions' => 'Call  604-255-6007 if given phone is not responding',
-            ],
-            'delivery' => [
-                'name' => $deliveryDetails['name'],
-                'street' => $deliveryDetails['street'],
-                'unit' => $deliveryDetails['unit'] ?? '', // Safe access with fallback
-                'city' => $deliveryDetails['city'],
-                'province' => $deliveryDetails['province'],
-                'postalCode' => $destinationPostal,
-                'country' => 'CAN',
-                'instructions' => 'Call  604-255-6007 if given phone is not responding',
-                'contact' => $deliveryDetails['contact'],
-                'phone' => $deliveryDetails['phone'],
-                'notificationEmail' => $deliveryDetails['email'],
-            ],
-            'serviceTypeId' => 4,
-            'vehicleTypeId' => 1,
-            'readyBy'=> "2050-10-10T15:00-07:00",
-            'instructions'=> "",
-            'packages' => [
-                [
-                    'typeId' => 3,
-                    'length' => $dimensions,
-                    'width' => 1,
-                    'height' => 1,
-                    'weight' => $weight,
-                    'count' => 1
-                ]
-            ]
-        ];
-
-
-
-        try {
-            $response = Http::withOptions([
-                'verify' => config('services.http_verify'),
-            ])->withHeaders([
-                'Authorization' => 'Basic ' . config('services.novex.auth_key'),
-                'Content-Type' => 'application/json',
-            ])->post(config('services.novex.api_url'), $orderDetails);
-
-
-
-            if ($response->successful()) {
-                $data = $response->json();
-                $totalAmount = $data['totalAmount'] ?? 0;
-
-                // Add 25% markup
-                $totalAmount += ($totalAmount * 0.25);
-
-                return ['amount' => $totalAmount];
-            } else {
-                Log::error('Novex API error', [
-                    'status' => $response->status(),
-                    'response' => $response->body(),
-                    'request' => $orderDetails
-                ]);
-                return $response->json();
-            }
-        } catch (\Exception $e) {
-            Log::error('Novex API exception: ' . $e->getMessage(), [
-                'request' => $orderDetails,
-                'trace' => $e->getTraceAsString()
-            ]);
-            return -1;
-        }
-    }
-
 
     public function pushToNovex($id, ClosestSupplierService $service)
     {
