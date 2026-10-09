@@ -46,6 +46,12 @@ return [
         'auth_key' => env('NOVEX_AUTH_KEY'),
     ],
 
+    'exact' => [
+        'login' => env('EXACT_LOGIN_ID'),
+        // Secret from the Exact payment page settings; used to verify x_MD5_Hash on the payment callback.
+        'response_key' => env('EXACT_RESPONSE_KEY'),
+    ],
+
     'http_verify' => env('APP_ENV') !== 'local',
 
 

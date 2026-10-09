@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Services\ClosestSupplierService;
+use App\Services\ExactResponseVerifier;
 use App\Services\InvoiceService;
 use Illuminate\Support\Facades\Validator;
 
@@ -643,7 +644,7 @@ class OrderCrudController extends CrudController
             'delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'status' => 'string|in:valid,cancelled,skip',
-            'pickup_delivery' => 'string|in:pickup,delivery',
+            'pickup_delivery' => 'required|string|in:pickup,delivery',
             'supplier_id' => 'nullable|numeric|min:0',
             'sub_total' => 'nullable|numeric|min:0',
             'delivery_cost' => 'nullable|numeric|min:0',
@@ -658,7 +659,14 @@ class OrderCrudController extends CrudController
             'items.*.total_price' => 'nullable|numeric|min:0',
         ]);
 
-
+        // A delivery order always has a delivery cost. A zero here means the
+        // quote failed or was skipped, and the order must not go through free.
+        if ($validated['pickup_delivery'] === 'delivery' && (float) ($validated['delivery_cost'] ?? 0) <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'We could not calculate the delivery cost for this order. Please go back to the review step and try again, or choose pickup.',
+            ], 422);
+        }
 
         DB::beginTransaction();
 
@@ -1069,6 +1077,22 @@ class OrderCrudController extends CrudController
                 'success' => false,
                 'message' => 'Invoice not found or already processed.',
                 'invoice_number' => $invoiceNumber ?? null,
+            ]);
+        }
+
+        // Anyone can open this URL, so only act on a response that matches the
+        // invoice and (when configured) carries a valid gateway hash.
+        $problem = app(ExactResponseVerifier::class)->verify($request, $invoice);
+        if ($problem) {
+            \Log::warning('Payment callback rejected: ' . $problem, [
+                'invoice_number' => $invoice->invoice_number,
+                'ip' => $request->ip(),
+            ]);
+
+            return view('website.order.payment-result', [
+                'success' => false,
+                'message' => 'We could not verify this payment response, so the invoice was left unchanged. If you were charged, please contact us and quote the invoice number below.',
+                'invoice_number' => $invoice->invoice_number,
             ]);
         }
 

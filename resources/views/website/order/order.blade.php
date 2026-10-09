@@ -1304,8 +1304,17 @@
         }
 
         // 1. Fix the populateReview function to properly handle dynamic products
+        // Bumped on every review refresh so a slow, older delivery quote can't overwrite a newer one.
+        let reviewRun = 0;
+
+        function setSubmitEnabled(enabled) {
+            const btn = document.querySelector('.submit-btn');
+            if (btn) btn.disabled = !enabled;
+        }
+
         function populateReview() {
             console.log('🎯 populateReview() started');
+            const run = ++reviewRun;
 
             const getValue = (id) => document.getElementById(id)?.value.trim() || '';
 
@@ -1389,19 +1398,30 @@
             } else if (deliveryType === 'delivery') {
                 if (pickupDeliveryInput) pickupDeliveryInput.value = 'delivery';
 
+                // No order can be submitted until a real delivery price is in.
+                setSubmitEnabled(false);
+                document.getElementById('hidden_delivery_cost').value = '';
+                if (deliveryCostElement) deliveryCostElement.textContent = 'Calculating...';
+
                 // ✅ Now set hidden_amount_of_ice BEFORE calling getDeliveryQuoteForReview
                 // so it reads the correct value
                 getDeliveryQuoteForReview(totalIceAmount)
                     .then(quoteTotal => {
-                        deliveryCost = quoteTotal || 0.00;
+                        if (run !== reviewRun) return;
+                        deliveryCost = quoteTotal;
                         if (deliveryCostElement) deliveryCostElement.textContent = `$${deliveryCost.toFixed(2)}`;
                         calculateTotalsAndFinalize(subtotal, deliveryCost, pstableSubtotal);
                     })
                     .catch(error => {
+                        if (run !== reviewRun) return;
                         console.error('❌ Error getting delivery quote:', error);
-                        deliveryCost = 0.00;
-                        if (deliveryCostElement) deliveryCostElement.textContent = `$${deliveryCost.toFixed(2)}`;
-                        calculateTotalsAndFinalize(subtotal, deliveryCost, pstableSubtotal);
+                        // Don't fall back to $0 delivery: leave the order blocked and offer a retry.
+                        document.getElementById('hidden_delivery_cost').value = '';
+                        document.getElementById('tax-total').innerHTML = '&mdash;';
+                        if (deliveryCostElement) {
+                            deliveryCostElement.innerHTML = '<span style="color:#c00">Unavailable</span> <a href="#" onclick="populateReview(); return false;">Retry</a>';
+                        }
+                        setSubmitEnabled(false);
                     });
                 return;
 
@@ -1433,6 +1453,8 @@
             document.getElementById('hidden_tax').value = tax.toFixed(2);
             document.getElementById('hidden_total_cost').value = total.toFixed(2);
             document.getElementById('hidden_delivery_cost').value = delivery.toFixed(2);
+
+            setSubmitEnabled(true);
 
             // Continue with the rest of the original function
             populateLocationAndContactInfo();
@@ -1673,6 +1695,17 @@
                     icon: 'warning',
                     title: 'Required',
                     text: 'Please accept the safety information and disclaimer before submitting.'
+                });
+                return;
+            }
+
+            // A delivery order needs a real delivery price before it can be placed.
+            const isDelivery = document.getElementById('hidden_pickup_delivery').value === 'delivery';
+            if (isDelivery && !(parseFloat(document.getElementById('hidden_delivery_cost').value) > 0)) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Delivery cost not available',
+                    text: 'We could not calculate the delivery cost yet. Please use Retry next to Delivery, or choose pickup.'
                 });
                 return;
             }
