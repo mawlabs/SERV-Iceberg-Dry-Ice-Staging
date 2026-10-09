@@ -772,19 +772,12 @@ class OrderCrudController extends CrudController
                 return $this->orderSubmittedResponse($existingOrder);
             }
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create order: ' . $e->getMessage()
-            ], 422);
+            return $this->orderCreateFailedResponse($e, $submissionToken);
 
         } catch (\Exception $e) {
             DB::rollBack();
 
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create order: ' . $e->getMessage()
-            ], 422);
+            return $this->orderCreateFailedResponse($e, $submissionToken);
         }
 
         // The order is saved. A mail problem must not turn that into an error
@@ -796,6 +789,24 @@ class OrderCrudController extends CrudController
         }
 
         return $this->orderSubmittedResponse($order);
+    }
+
+    /**
+     * The real error (often SQL text) goes to the log; the customer gets a
+     * plain message they can act on.
+     */
+    private function orderCreateFailedResponse(\Throwable $e, ?string $submissionToken)
+    {
+        \Log::error('Online order could not be created: ' . $e->getMessage(), [
+            'exception' => get_class($e),
+            'file' => $e->getFile() . ':' . $e->getLine(),
+            'submission_token' => $submissionToken,
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'We could not place your order because of a problem on our side. Nothing has been charged. Please try again in a moment, or contact us if it keeps happening.',
+        ], 500);
     }
 
     private function orderSubmittedResponse(Order $order)

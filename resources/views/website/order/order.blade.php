@@ -1759,10 +1759,14 @@
                 body: formData,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
                 }
             })
-                .then(response => response.json())
-                .then(data => {
+                // Keep the HTTP status with the body; a proxy/server error page isn't JSON.
+                .then(response => response.json()
+                    .catch(() => ({}))
+                    .then(data => ({ status: response.status, data })))
+                .then(({ status, data }) => {
                     // console.log('Response data:', data);
 
                     if (data.success) {
@@ -1772,11 +1776,28 @@
                         // Redirect to payment loading page with order ID
                         window.location.href = `/payment-redirect/${data.order_id}`;
                     } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Submission Failed',
-                            text: data.message || 'Unknown error occurred.'
-                        }).then(() => {
+                        const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+                        const swalOptions = { icon: 'error', title: 'Submission Failed' };
+
+                        if (status === 419) {
+                            // Session/CSRF expired: the saved order details come back after a refresh.
+                            swalOptions.title = 'Session Expired';
+                            swalOptions.text = 'Your session expired while you were on this page. Please refresh the page and submit again. Your order details have been saved.';
+                        } else if (data.errors && typeof data.errors === 'object') {
+                            // Show what is actually wrong, not just "(and 2 more errors)".
+                            const problems = [...new Set(Object.values(data.errors).flat())].slice(0, 6);
+                            swalOptions.title = 'Please check your order';
+                            swalOptions.html = '<ul style="text-align:left;margin:0;padding-left:1.2em">'
+                                + problems.map(p => '<li>' + escapeHtml(p) + '</li>').join('') + '</ul>';
+                        } else if (data.message) {
+                            swalOptions.text = data.message;
+                        } else if (status >= 500) {
+                            swalOptions.text = 'Our server had a problem. Nothing has been charged. Please try again in a moment.';
+                        } else {
+                            swalOptions.text = 'Something went wrong. Please try again.';
+                        }
+
+                        Swal.fire(swalOptions).then(() => {
                             submitBtn.textContent = originalText;
                             submitBtn.disabled = false;
                         });
