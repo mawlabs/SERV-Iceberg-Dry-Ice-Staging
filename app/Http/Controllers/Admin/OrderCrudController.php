@@ -641,11 +641,14 @@ class OrderCrudController extends CrudController
             'postal_code' => 'required|string|max:20',
             'province' => 'required|string|max:50',
             'country' => 'string|max:100',
-            'delivery_date' => 'nullable|date',
+            // Required: a missing date used to become "today". "yesterday" as the
+            // floor leaves room for the server clock (UTC) being ahead of BC/AB/QC
+            // while still rejecting dates that are plainly in the past.
+            'delivery_date' => 'required|date|after_or_equal:yesterday',
             'notes' => 'nullable|string',
             'status' => 'string|in:valid,cancelled,skip',
             'pickup_delivery' => 'required|string|in:pickup,delivery',
-            'supplier_id' => 'nullable|numeric|min:0',
+            'supplier_id' => 'nullable|integer|exists:supply_location,id',
             'sub_total' => 'nullable|numeric|min:0',
             'delivery_cost' => 'nullable|numeric|min:0',
             'tax' => 'nullable|numeric|min:0',
