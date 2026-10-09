@@ -28,8 +28,10 @@ Route::get('admin/reports', [ReportsController::class, 'index'])
     ->middleware(['web', 'admin']) // important!
     ->name('reports');
 
-Route::post('/admin/orders_of_date', [OrderCrudController::class, 'getOrdersByLocationAndDate'])->name('orders.byDate');
-Route::post('/admin/send-email', [OrderCrudController::class, 'sendDryIceOrderEmail'])->name('send.ordersEmail');
+// Called by the admin Emails page. They return customer details and send mail, so admins only
+// ('web' is needed too: this file's top-level routes get no session without it).
+Route::post('/admin/orders_of_date', [OrderCrudController::class, 'getOrdersByLocationAndDate'])->middleware(['web', 'admin'])->name('orders.byDate');
+Route::post('/admin/send-email', [OrderCrudController::class, 'sendDryIceOrderEmail'])->middleware(['web', 'admin'])->name('send.ordersEmail');
 
 
 use App\Http\Middleware\CustomerMiddleware;
