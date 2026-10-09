@@ -25,11 +25,11 @@
         .tot .val { text-align: left; }
     </style>
 </head>
-<body>
+<body class="invoice-body">
 <table class="fullTable">
     <tr>
         <td style="vertical-align: top;">
-            <img src="{{ asset('invoice-logo.jpg') }}" width="190" alt="logo" />
+{{--            <img src="{{ asset('invoice-logo.jpg') }}" width="190" alt="logo" />--}}
             <div class="addr" style="margin-top: 14px;">
                 329 Churchill Avenue<br>
                 New Westminster BC &nbsp;V3L 4P5<br>

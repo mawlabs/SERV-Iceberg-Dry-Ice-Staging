@@ -238,7 +238,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
-            <div class="modal-body p-0" id="invoiceModalBody">
+            <div class="modal-body px-5" id="invoiceModalBody">
                 {{-- Invoice HTML loads here --}}
                 <div class="text-center py-5" id="invoiceLoader">
                     <div class="spinner-border text-primary" role="status"></div>
