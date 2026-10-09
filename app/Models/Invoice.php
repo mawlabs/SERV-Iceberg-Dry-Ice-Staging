@@ -77,10 +77,17 @@ class Invoice extends Model
 
     // Generate the next invoice number: 3000 when the table is empty,
     // otherwise the highest existing invoice number + 1.
+    //
+    // Call this inside the same transaction that saves the invoice. The locking
+    // read makes a second request wait for the first to commit and then see its
+    // number; without it both read the same maximum, pick the same number, and
+    // the second fails on the unique index (orders and finalizes failing at random
+    // when two arrive together).
     public static function generateInvoiceNumber(): string
     {
         // Highest existing numeric invoice number (0 when there are no records).
-        $last = (int) static::orderByRaw('CAST(invoice_number AS UNSIGNED) DESC')
+        $last = (int) static::lockForUpdate()
+            ->orderByRaw('CAST(invoice_number AS UNSIGNED) DESC')
             ->value('invoice_number');
 
         return (string) ($last < 3000 ? 3000 : $last + 1);
