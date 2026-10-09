@@ -1097,13 +1097,12 @@ class OrderCrudController extends CrudController
 
         $invoice = Invoice::where('invoice_number', $invoiceNumber)
             ->with('invoiceable')
-            ->where('payment_status', Invoice::PENDING)
             ->first();
 
         if (!$invoice) {
             return view('website.order.payment-result', [
                 'success' => false,
-                'message' => 'Invoice not found or already processed.',
+                'message' => 'Invoice not found.',
                 'invoice_number' => $invoiceNumber ?? null,
             ]);
         }
@@ -1124,48 +1123,103 @@ class OrderCrudController extends CrudController
             ]);
         }
 
-        if ($responseCode == '1') {
-            // success
-            $invoice->update([
-                'payment_status' => Invoice::PAID,
-                'transaction_json' => json_encode($request->all()),
-                'paid_at' => now()
+        $approved = $responseCode == '1';
+        $invoiceable = $invoice->invoiceable;
+
+        // The gateway page is reloaded or the callback repeated: nothing to change.
+        if ($invoice->payment_status === Invoice::PAID) {
+            return view('website.order.payment-result', [
+                'success' => $approved,
+                'message' => $approved ? 'This payment was already recorded.' : 'This invoice has already been paid.',
+                'invoice_number' => $invoice->invoice_number,
+                'amount' => $approved ? $request->get('x_amount') : null,
+                'transaction_id' => $approved ? $request->get('x_trans_id') : null,
+            ]);
+        }
+
+        // Only unpaid invoices can be paid (pending, or failed so a declined card can retry).
+        if (!in_array($invoice->payment_status, [Invoice::PENDING, Invoice::FAILED], true)) {
+            return view('website.order.payment-result', [
+                'success' => false,
+                'message' => 'Invoice not found or already processed.',
+                'invoice_number' => $invoice->invoice_number,
+            ]);
+        }
+
+        // A declined card can be tried again from the same order.
+        $retryUrl = $invoiceable instanceof Order ? route('payment.redirect', $invoiceable->id) : null;
+
+        // Update the invoice and its order together, or not at all.
+        try {
+            DB::transaction(function () use ($approved, $invoice, $invoiceable, $request) {
+                if ($approved) {
+                    $invoice->update([
+                        'payment_status' => Invoice::PAID,
+                        'transaction_json' => json_encode($request->all()),
+                        'paid_at' => now()
+                    ]);
+
+                    if ($invoiceable instanceof Order) {
+                        $invoiceable->update(['payment_status' => 'paid']);
+                    } elseif ($invoiceable instanceof RecurringOrder) {
+                        $invoiceable->update(['recurring_payment_status' => 1]);
+                    }
+                } else {
+                    $invoice->update([
+                        'payment_status' => Invoice::FAILED,
+                        'transaction_json' => json_encode($request->all()),
+                    ]);
+                }
+            });
+        } catch (\Throwable $e) {
+            \Log::error('Payment callback could not be recorded: ' . $e->getMessage(), [
+                'invoice_number' => $invoice->invoice_number,
+                'approved' => $approved,
+                'transaction_id' => $request->get('x_trans_id'),
             ]);
 
-            $invoiceable = $invoice->invoiceable;
+            return view('website.order.payment-result', [
+                'success' => false,
+                'message' => $approved
+                    ? 'Your payment went through but we could not record it automatically. Please do not pay again: contact us and quote the invoice number and transaction ID below.'
+                    : 'Something went wrong on our side. Please try again in a moment.',
+                'invoice_number' => $invoice->invoice_number,
+                'transaction_id' => $approved ? $request->get('x_trans_id') : null,
+                'retry_url' => $approved ? null : $retryUrl,
+            ]);
+        }
 
+        if (!$approved) {
+            return view('website.order.payment-result', [
+                'success' => false,
+                'message' => 'Payment failed. Please try again.',
+                'invoice_number' => $invoice->invoice_number,
+                'retry_url' => $retryUrl,
+            ]);
+        }
+
+        // The payment is recorded. A mail problem must not turn that into an
+        // error page for someone who has just paid, so it is only logged.
+        try {
             if ($invoiceable instanceof Order) {
-                $invoiceable->update(['payment_status' => 'paid']);
                 Mail::to($invoiceable->email)->send(new OrderPlacedMail($invoiceable));
             } elseif ($invoiceable instanceof RecurringOrder) {
-                $invoiceable->update(['recurring_payment_status' => 1]);
                 $invoiceable->load('order');
                 if ($invoiceable->order) {
                     Mail::to($invoiceable->order->email)->send(new OrderPlacedMail($invoiceable, 'recurring'));
                 }
             }
-
-            return view('website.order.payment-result', [
-                'success' => true,
-                'message' => 'Payment completed successfully!',
-                'invoice_number' => $invoice->invoice_number,
-                'amount' => $request->get('x_amount') ?? null,
-                'transaction_id' => $request->get('x_trans_id') ?? null,
-            ]);
-        } else {
-            // failed
-            $invoice->update([
-                'payment_status' => Invoice::FAILED,
-                'transaction_json' => json_encode($request->all()),
-                'paid_at' => now()
-            ]);
-
-            return view('website.order.payment-result', [
-                'success' => false,
-                'message' => 'Payment failed. Please try again.',
-                'invoice_number' => $invoice->invoice_number,
-            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Payment confirmation email failed for invoice ' . $invoice->invoice_number . ': ' . $e->getMessage());
         }
+
+        return view('website.order.payment-result', [
+            'success' => true,
+            'message' => 'Payment completed successfully!',
+            'invoice_number' => $invoice->invoice_number,
+            'amount' => $request->get('x_amount') ?? null,
+            'transaction_id' => $request->get('x_trans_id') ?? null,
+        ]);
     }
 
 

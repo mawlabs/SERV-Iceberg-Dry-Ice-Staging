@@ -43,16 +43,29 @@
                                     <span class="detail-label">Invoice Number:</span>
                                     <span class="detail-value">#{{ $invoice_number }}</span>
                                 </div>
+                                @if(!empty($transaction_id))
+                                    <div class="detail-row">
+                                        <span class="detail-label">Transaction ID:</span>
+                                        <span class="detail-value">{{ $transaction_id }}</span>
+                                    </div>
+                                @endif
                             </div>
                         @endif
                     @endif
 
                     <div class="mt-5">
-                        <a href="{{ route('customer.dashboard') }}" class="btn btn-primary btn-lg">
-                            <i class="la la-home me-2"></i>Go to Dashboard
-                        </a>
-                        @if(!$success)
-                            <a href="{{ route('manual-payments.index') }}" class="btn btn-secondary btn-lg ms-2">
+                        {{-- Guests (public checkout) have no dashboard, so send them to the home page. --}}
+                        @if(Auth::guard('customer')->check())
+                            <a href="{{ route('customer.dashboard') }}" class="btn btn-primary btn-lg">
+                                <i class="la la-home me-2"></i>Go to Dashboard
+                            </a>
+                        @else
+                            <a href="{{ route('home') }}" class="btn btn-primary btn-lg">
+                                <i class="la la-home me-2"></i>Home
+                            </a>
+                        @endif
+                        @if(!$success && !empty($retry_url))
+                            <a href="{{ $retry_url }}" class="btn btn-secondary btn-lg ms-2">
                                 <i class="la la-redo me-2"></i>Try Again
                             </a>
                         @endif
