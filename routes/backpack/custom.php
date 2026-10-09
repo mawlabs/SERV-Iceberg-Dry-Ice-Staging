@@ -162,14 +162,14 @@ Route::group([
 
 });
 
-Route::post('/order/ajax-create-from-review', [OrderCrudController::class, 'ajaxCreateFromReview'])->name('orders.ajax-create-from-review');
+Route::post('/order/ajax-create-from-review', [OrderCrudController::class, 'ajaxCreateFromReview'])->middleware('throttle:checkout-order')->name('orders.ajax-create-from-review');
 
 Route::get('/payment-redirect/{order}', [OrderCrudController::class, 'paymentRedirect'])->name('payment.redirect');
 
 Route::get('/orders/payment-details', [OrderCrudController::class, 'getOrderDetails'])->name('orders.get-payment-details');
 
 Route::get('payments/initiate', [OrderCrudController::class, 'initiatePayment'])->name('payments.initiate');
-Route::get('payments/callback', [OrderCrudController::class, 'handlePaymentCallback'])->name('payments.callback');
+Route::get('payments/callback', [OrderCrudController::class, 'handlePaymentCallback'])->middleware('throttle:payment-callback')->name('payments.callback');
 
 Route::group([
     'prefix' => config('backpack.base.route_prefix', 'admin'),
