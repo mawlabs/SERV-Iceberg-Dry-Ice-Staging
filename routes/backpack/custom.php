@@ -147,6 +147,10 @@ Route::group([
     Route::get('/invoice/{invoice}/view', [OrderCrudController::class, 'viewInvoice'])->name('invoice.view');
     Route::get('/invoice/{invoice}/download', [OrderCrudController::class, 'downloadInvoice'])->name('invoice.download');
 
+    // Bill of lading (PDF). Optional ?signer= overrides the name printed on the Per line.
+    Route::get('/bill-of-lading/{order}', [\App\Http\Controllers\Admin\BillOfLadingController::class, 'order'])->name('bill-of-lading.order');
+    Route::get('/bill-of-lading/recurring/{recurringOrder}', [\App\Http\Controllers\Admin\BillOfLadingController::class, 'recurring'])->name('bill-of-lading.recurring');
+
 
     Route::prefix('invoice-generator')->group(function () {
         Route::get('/', [InvoiceGeneratorController::class, 'index'])->name('admin.invoice-generator.index');
