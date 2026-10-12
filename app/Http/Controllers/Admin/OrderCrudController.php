@@ -1804,6 +1804,7 @@ class OrderCrudController extends CrudController
                 'order' => $order,
                 'recurring' => $recurring,
                 'status' => $status,
+                'showBillOfLading' => true, // admin only; the customer dashboard shares this view
             ];
 //            dd($data);
             return view('website.customer.partials.order_details', $data);

@@ -8,9 +8,17 @@
                     <h1 class="text-capitalize mb-0">Order #{{ str_pad($recurring ? $order->recurringOrders->first()->invoice_id : $order->invoice_id, 4, '0', STR_PAD_LEFT) }}</h1>
                     <p class="ms-2 ml-2 mb-0">View your order details and information.</p>
                 </div>
-                <button class="btn btn-secondary btn-submission" onclick="hideOrderDetails()">
-                    <i class="la la-arrow-left me-2"></i> Back to Orders
-                </button>
+                <div>
+                    @if(($showBillOfLading ?? false) && $recurring && $order->recurringOrders->first())
+                        <a href="{{ route('bill-of-lading.recurring', ['recurringOrder' => $order->recurringOrders->first()->id, 'download' => 1]) }}"
+                           class="btn btn-outline-secondary me-2">
+                            Bill of Lading
+                        </a>
+                    @endif
+                    <button class="btn btn-secondary btn-submission" onclick="hideOrderDetails()">
+                        <i class="la la-arrow-left me-2"></i> Back to Orders
+                    </button>
+                </div>
             </section>
 
 
@@ -216,6 +224,12 @@
                                 <i class="la la-arrow-left me-2"></i> Back to Orders
                             </button>
 
+                            @if(($showBillOfLading ?? false) && $recurring && $order->recurringOrders->first())
+                                <a href="{{ route('bill-of-lading.recurring', ['recurringOrder' => $order->recurringOrders->first()->id, 'download' => 1]) }}"
+                                   class="btn btn-outline-secondary ms-2">
+                                    Bill of Lading
+                                </a>
+                            @endif
                         </div>
                     </div>
                 </div>
