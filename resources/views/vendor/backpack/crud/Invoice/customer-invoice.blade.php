@@ -713,7 +713,7 @@
                 <h5 class="modal-title" id="previewDraftModalLabel">Invoice Preview</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-0" id="previewDraftModalBody">
+            <div class="modal-body p-0 px-5" id="previewDraftModalBody">
                 <div class="text-center py-5" id="previewDraftLoader">
                     <div class="spinner-border text-primary" role="status"></div>
                     <p class="mt-2 text-muted">Loading preview...</p>
