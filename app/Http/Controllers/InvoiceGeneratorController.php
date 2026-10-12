@@ -393,6 +393,11 @@ class InvoiceGeneratorController extends Controller
                 $invoice->update(['notes' => $request->input('notes')]);
                 break;
 
+            case 'update_invoice_date':
+                $request->validate(['invoice_date' => 'required|date']);
+                $invoice->update(['invoice_date' => Carbon::parse($request->invoice_date)->format('Y-m-d')]);
+                break;
+
             default:
                 return response()->json(['success' => false, 'message' => 'Unknown action.'], 422);
         }
@@ -430,14 +435,19 @@ class InvoiceGeneratorController extends Controller
 
         $notes = $request->input('notes', $invoice->notes);
 
-        DB::transaction(function () use ($invoice, $refs, $notes) {
+        // Keep the date the admin chose (draft default is the day the draft was created).
+        $invoiceDate = $request->filled('invoice_date')
+            ? Carbon::parse($request->input('invoice_date'))->format('Y-m-d')
+            : ($invoice->invoice_date ? Carbon::parse($invoice->invoice_date)->format('Y-m-d') : now()->format('Y-m-d'));
+
+        DB::transaction(function () use ($invoice, $refs, $notes, $invoiceDate) {
             $this->recomputeTotal($invoice);
 
             $invoice->update([
                 'status'         => Invoice::STATUS_FINALIZED,
                 'invoice_number' => Invoice::generateInvoiceNumber(),
                 'payment_status' => 'pending',
-                'invoice_date'   => now()->format('Y-m-d'),
+                'invoice_date'   => $invoiceDate,
                 'notes'          => $notes,
             ]);
 
@@ -832,7 +842,17 @@ class InvoiceGeneratorController extends Controller
             ];
         }
 
-        $lineItems = $invoice->lineItems->map(fn ($li) => [
+        // Chronological; within a date the Delivery row comes first, then creation order.
+        $orderRefs = collect($orderRefs)->sortBy('delivery_date')->values()->all();
+
+        $lineItems = $invoice->lineItems
+            ->sortBy(fn ($li) => sprintf(
+                '%s-%d-%08d',
+                $li->delivery_date ? Carbon::parse($li->delivery_date)->format('Ymd') : '00000000',
+                strcasecmp(trim($li->description), 'Delivery') === 0 ? 0 : 1,
+                $li->id
+            ))
+            ->map(fn ($li) => [
             'id'            => $li->id,
             'order_id'      => $li->order_id,
             'product_id'    => $li->product_id,
@@ -861,6 +881,7 @@ class InvoiceGeneratorController extends Controller
             'id'           => $invoice->id,
             'customer_id'  => $invoice->customer_id,
             'notes'        => $invoice->notes,
+            'invoice_date' => $invoice->invoice_date ? Carbon::parse($invoice->invoice_date)->format('Y-m-d') : '',
             'start_date'   => $dates ? collect($dates)->min()->format('Y-m-d') : '',
             'end_date'     => $dates ? collect($dates)->max()->format('Y-m-d') : '',
             'order_refs'   => $orderRefs,

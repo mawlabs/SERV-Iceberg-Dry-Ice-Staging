@@ -22,7 +22,7 @@
         .items tr.last td { border-bottom: 3px solid #000; }
         .tot td { font-size: 10px; padding: 2px 0; }
         .tot .lbl { font-style: italic; font-weight: bold; text-align: right; padding-right: 22px; }
-        .tot .val { text-align: left; }
+        .tot .val { text-align: right; width: 70px; }
     </style>
 </head>
 <body class="invoice-body">

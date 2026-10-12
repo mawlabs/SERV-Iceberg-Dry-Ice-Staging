@@ -183,6 +183,11 @@
                         </div>
 
                         <div class="mt-3">
+                            <label for="invoice-date" class="form-label" style="font-size:14px;font-weight:600;">Invoice Date</label>
+                            <input type="date" id="invoice-date" class="form-control">
+                        </div>
+
+                        <div class="mt-3">
                             <label for="invoice-notes" class="form-label" style="font-size:14px;font-weight:600;">Invoice Notes</label>
                             <textarea id="invoice-notes" class="form-control" rows="3"
                                 placeholder="Optional notes"></textarea>
@@ -442,6 +447,7 @@
                 });
 
                 document.getElementById('invoice-notes').value = draft.notes || '';
+                document.getElementById('invoice-date').value = draft.invoice_date || '';
 
                 document.getElementById('summary-subtotal').textContent  = fmt(draft.totals.sub_total);
                 document.getElementById('summary-gsttotal').textContent  = fmt(draft.totals.gst_total);
@@ -564,6 +570,12 @@
                 sendDraftAction({ action: 'update_notes', notes: this.value });
             });
 
+            // Persist the invoice date on change so preview and finalize use it.
+            document.getElementById('invoice-date').addEventListener('change', function () {
+                if (!currentDraftId || !this.value) return;
+                sendDraftAction({ action: 'update_invoice_date', invoice_date: this.value });
+            });
+
             // Preview the invoice as it will actually look, before finalizing.
             const previewDraftModal     = new bootstrap.Modal(document.getElementById('previewDraftModal'));
             const previewDraftModalBody = document.getElementById('previewDraftModalBody');
@@ -628,6 +640,7 @@
 
                     postJson('{{ route('admin.invoice-generator.finalize') }}', {
                         invoice_id: currentDraftId,
+                        invoice_date: document.getElementById('invoice-date').value,
                         notes: document.getElementById('invoice-notes').value
                     }).then(data => {
                         if (data.success) {
