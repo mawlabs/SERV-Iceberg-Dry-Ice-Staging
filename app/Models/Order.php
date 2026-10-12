@@ -96,6 +96,22 @@ class Order extends Model
         return $this->hasMany(RecurringOrder::class);
     }
 
+    /**
+     * True when this order (or any of its recurring occurrences) sits in a draft
+     * consolidated invoice, in which case its details must not change.
+     */
+    public function isInDraftInvoice(): bool
+    {
+        return InvoiceOrders::query()
+            ->whereIn('invoice_id', Invoice::draft()->select('id'))
+            ->where(function ($q) {
+                $q->where(fn ($q) => $q->where('invoiceable_type', self::class)->where('invoiceable_id', $this->id))
+                  ->orWhere(fn ($q) => $q->where('invoiceable_type', RecurringOrder::class)
+                      ->whereIn('invoiceable_id', $this->recurringOrders()->select('id')));
+            })
+            ->exists();
+    }
+
     public function nextRecurringOrder()
     {
         return $this->recurringOrders()

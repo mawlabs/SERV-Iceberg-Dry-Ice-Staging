@@ -384,6 +384,13 @@
             @endif
         @endif
 
+        @if($isEditMode)
+            <a href="{{ route('bill-of-lading.order', ['order' => $defaultValues['order_id'], 'download' => 1]) }}"
+               class="btn btn-outline-secondary ms-2">
+                Bill of Lading
+            </a>
+        @endif
+
         <button class="btn btn-secondary mx-2" data-bs-dismiss="modal">Cancel</button>
     </div>
 

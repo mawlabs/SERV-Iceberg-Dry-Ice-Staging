@@ -1,5 +1,6 @@
 @php
     $isEditMode = $mode === 'edit';
+    $locked = $lockedByDraftInvoice ?? false;
 @endphp
 
 <div class="modal-header border-0">
@@ -24,6 +25,12 @@
     <input type="hidden" name="origin" value="manual">
 
     <div class="modal-body">
+        @if($locked)
+            <div class="alert alert-warning">
+                This order is part of a draft invoice, so it can't be edited. Discard the draft invoice to make changes.
+            </div>
+        @endif
+        <fieldset @disabled($locked)>
         <div class="row">
             <div class="col-12">
                 <div class="mb-3">
@@ -206,6 +213,7 @@
                 </div>
             </div>
         </div>
+        </fieldset>
 
     </div>
 
@@ -217,7 +225,7 @@
             data-bs-dismiss="modal">
             Cancel
         </button>
-        @if(isset($order) && $order->payment_status !== 'paid' || !isset($order))
+        @if((isset($order) && $order->payment_status !== 'paid' || !isset($order)) && !$locked)
             <button
                 type="button"
                 id="save-order-btn"
@@ -243,6 +251,13 @@
                     Order Pushed
                 </button>
             @endif
+        @endif
+
+        @if($isEditMode)
+            <a href="{{ route('bill-of-lading.order', ['order' => $order->id, 'download' => 1]) }}"
+               class="btn btn-outline-secondary">
+                Bill of Lading
+            </a>
         @endif
 
         @if($isEditMode)

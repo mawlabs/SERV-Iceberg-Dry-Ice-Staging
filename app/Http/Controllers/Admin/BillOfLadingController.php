@@ -71,6 +71,8 @@ class BillOfLadingController extends Controller
             ->setOption('isRemoteEnabled', false)
             ->setOption('chroot', public_path());
 
-        return $pdf->stream('bill-of-lading-' . $order->id . '.pdf');
+        $filename = 'bill-of-lading-' . $order->id . '.pdf';
+
+        return $request->boolean('download') ? $pdf->download($filename) : $pdf->stream($filename);
     }
 }

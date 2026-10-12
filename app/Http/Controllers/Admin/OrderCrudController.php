@@ -1415,6 +1415,13 @@ class OrderCrudController extends CrudController
 
     protected function handleManualOrderUpdate(Request $request, $id)
     {
+        if (Order::findOrFail($id)->isInDraftInvoice()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This order is in a draft invoice and cannot be edited. Discard the draft invoice first.',
+            ], 422);
+        }
+
         $validator = Validator::make($request->all(), [
             'customer_id'      => 'required|exists:customers,id',
             'product'          => 'required|exists:products,id',
@@ -1713,6 +1720,7 @@ class OrderCrudController extends CrudController
                 'products'        => $products,
                 'defaultValues'   => $defaultValues,
                 'order'           => $order,
+                'lockedByDraftInvoice' => $order->isInDraftInvoice(),
             ]
         );
     }
