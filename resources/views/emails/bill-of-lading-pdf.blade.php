@@ -4,7 +4,7 @@
     $date           = $date           ?? 'Jul 10 2026';
     $customerNumber = $customerNumber ?? '3379';
     $consignee      = $consignee      ?? ['name' => 'ACI AIRCARGO INC', 'address' => '5200 Miller Road, Suite 104 Richmond, B.C.', 'phone' => '(778) 377-7233'];
-    $item           = $item           ?? ['un' => 'UN1845', 'pieces' => '', 'description' => 'Dry Ice', 'class' => '9', 'pkg_grp' => '', 'weight_kg' => '15.91'];
+    $weightKg       = $weightKg       ?? '15.91';
     $signerName     = $signerName     ?? 'Tyler Anderson';
 @endphp
 <!DOCTYPE html>
@@ -78,12 +78,10 @@
 <div class="t" style="left:357pt;top:218pt;font-size:9pt;line-height:10.1pt;color:#000;font-weight:bold;">CLASS</div>
 <div class="t" style="left:400pt;top:218pt;font-size:9pt;line-height:10.1pt;color:#000;font-weight:bold;">PKG GRP</div>
 <div class="t" style="left:458pt;top:218pt;font-size:9pt;line-height:10.1pt;color:#000;font-weight:bold;">WEIGHT/Kgm</div>
-<div class="t" style="left:20pt;top:236pt;font-size:10pt;line-height:11.2pt;color:#000;">{{ $item['un'] }}</div>
-<div class="t" style="left:72pt;top:236pt;font-size:10pt;line-height:11.2pt;color:#000;">{{ $item['pieces'] }}</div>
-<div class="t" style="left:115pt;top:236pt;font-size:10pt;line-height:11.2pt;color:#000;">{{ $item['description'] }}</div>
-<div class="t" style="left:368pt;top:236pt;font-size:10pt;line-height:11.2pt;color:#000;">{{ $item['class'] }}</div>
-<div class="t" style="left:405pt;top:236pt;font-size:10pt;line-height:11.2pt;color:#000;">{{ $item['pkg_grp'] }}</div>
-<div class="t" style="left:472pt;top:236pt;font-size:10pt;line-height:11.2pt;color:#000;">{{ $item['weight_kg'] }}</div>
+<div class="t" style="left:20pt;top:236pt;font-size:10pt;line-height:11.2pt;color:#000;">UN1845</div>
+<div class="t" style="left:115pt;top:236pt;font-size:10pt;line-height:11.2pt;color:#000;">Dry Ice</div>
+<div class="t" style="left:368pt;top:236pt;font-size:10pt;line-height:11.2pt;color:#000;">9</div>
+<div class="t" style="left:472pt;top:236pt;font-size:10pt;line-height:11.2pt;color:#000;">{{ $weightKg }}</div>
 <div class="t" style="left:19pt;top:253pt;font-size:12pt;line-height:13.4pt;color:#000;font-weight:bold;">Caution</div>
 <div class="t" style="left:19pt;top:270.0pt;font-size:8pt;line-height:9.0pt;color:#000;font-weight:bold;">DRY ICE IS A SKIN AND EYE IRRITANT, USE GLOVES TO HANDLE. DRY ICE IS HARMFUL IF EATEN OR SWALLOWED.  AVOID </div>
 <div class="t" style="left:19pt;top:279.5pt;font-size:8pt;line-height:9.0pt;color:#000;font-weight:bold;">CONTACT WITH SKIN, MOUTH, EYES,AND CLOTHING.  MAY CAUSE SEVERE FROSTBITE OR BURNS.  IF EATEN OR IF </div>
