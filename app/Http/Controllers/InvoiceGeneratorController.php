@@ -518,7 +518,7 @@ class InvoiceGeneratorController extends Controller
             'flatChargesTotal' => $flatChargesTotal,
             'totalAmount'    => $invoice->total_amount,
         ])->setOption('isHtml5ParserEnabled', true)
-            ->setOption('isRemoteEnabled', true)
+            ->setOption('isRemoteEnabled', false)
             ->setOption('chroot', public_path());
 
         return $pdf->download('invoice-' . $invoice->invoice_number . '.pdf');
@@ -577,7 +577,7 @@ class InvoiceGeneratorController extends Controller
                 'flatChargesTotal' => $flatChargesTotal,
                 'totalAmount'      => $invoice->total_amount,
             ])->setOption('isHtml5ParserEnabled', true)
-                ->setOption('isRemoteEnabled', true)
+                ->setOption('isRemoteEnabled', false)
                 ->setOption('chroot', public_path())
                 ->output();
 

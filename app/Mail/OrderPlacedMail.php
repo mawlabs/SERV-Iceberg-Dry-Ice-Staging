@@ -47,7 +47,7 @@ class OrderPlacedMail extends Mailable
             $pdf = Pdf::loadView('emails.invoice-pdf', [
                 'order' => $this->order,
                 'invoice_number' => $this->order->invoice->invoice_number ?? null,
-            ])->setOption('isHtml5ParserEnabled', true)->setOption('isRemoteEnabled', true)->setOption('chroot', public_path());
+            ])->setOption('isHtml5ParserEnabled', true)->setOption('isRemoteEnabled', false)->setOption('chroot', public_path());
 
             $mail->attachData($pdf->output(), 'invoice.pdf', [
                 'mime' => 'application/pdf',

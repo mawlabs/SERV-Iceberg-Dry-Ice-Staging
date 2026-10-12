@@ -2053,7 +2053,7 @@ class OrderCrudController extends CrudController
             'invoice_number' => $invoice->invoice_number ?? null,
             'invoiceable'    => $invoiceable,
         ])->setOption('isHtml5ParserEnabled', true)
-            ->setOption('isRemoteEnabled', true)
+            ->setOption('isRemoteEnabled', false)
             ->setOption('chroot', public_path());
 
         return $pdf->download('invoice-' . $invoice->invoice_number . '.pdf');

@@ -20,7 +20,7 @@
     </style>
 </head>
 <body>
-<img src="{{ asset('invoice-logo.jpg') }}" style="position:absolute; left:7.3pt; top:2.3pt; width:234.9pt; height:131.5pt;" alt="logo" />
+<img src="{{ \App\Support\InvoiceAssets::logoDataUri() }}" style="position:absolute; left:7.3pt; top:2.3pt; width:234.9pt; height:131.5pt;" alt="logo" />
 <div style="position:absolute; left:304.6pt; top:410.4pt; width:213pt; height:19.4pt; background:#ffff42;"></div>
 
 <div class="r" style="left:0pt;top:153pt;width:560.3pt;height:1pt;"></div>

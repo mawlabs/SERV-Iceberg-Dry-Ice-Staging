@@ -68,7 +68,7 @@ class BillOfLadingController extends Controller
             'signerName'     => $request->query('signer', backpack_user()->name ?? ''),
         ])->setPaper('letter')
             ->setOption('isHtml5ParserEnabled', true)
-            ->setOption('isRemoteEnabled', true)
+            ->setOption('isRemoteEnabled', false)
             ->setOption('chroot', public_path());
 
         return $pdf->stream('bill-of-lading-' . $order->id . '.pdf');
