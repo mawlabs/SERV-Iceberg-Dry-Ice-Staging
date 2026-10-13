@@ -4,23 +4,23 @@
     <meta charset="UTF-8">
     <title>Consolidated Invoice</title>
     <style>
-        @page { margin: 40px 60px; }
+        @page { size: letter; margin: 30pt 90pt 30pt 54pt; }
         body {
             margin: 0;
             padding: 0;
             font-family: Helvetica, Arial, sans-serif;
-            font-size: 10px;
+            font-size: 10pt;
             color: #000000;
         }
         table { border-collapse: collapse; }
         p { margin: 0; }
         .fullTable { width: 100%; }
-        .addr { font-style: italic; color: #004080; font-size: 11px; line-height: 1.35; }
-        .cust { font-size: 10px; line-height: 1.9; }
-        .items th { font-size: 10px; font-weight: bold; padding: 4px 6px 6px 6px; border-bottom: 3px solid #000; }
-        .items td { font-size: 10px; padding: 3px 6px; }
+        .addr { font-style: italic; color: #004080; font-size: 10pt; line-height: 1.3; }
+        .cust { font-size: 9pt; line-height: 1.9; }
+        .items th { font-size: 10pt; font-weight: bold; padding: 4px 3px 6px 3px; white-space: nowrap; border-bottom: 3px solid #000; }
+        .items td { font-size: 9pt; padding: 4.5px 3px; white-space: nowrap; }
         .items tr.last td { border-bottom: 3px solid #000; }
-        .tot td { font-size: 10px; padding: 2px 0; }
+        .tot td { font-size: 9pt; padding: 2px 0; }
         .tot .lbl { font-style: italic; font-weight: bold; text-align: right; padding-right: 22px; }
         .tot .val { text-align: right; width: 70px; }
     </style>
@@ -43,7 +43,7 @@
 <table class="fullTable">
     <tr>
         <td style="vertical-align: top;">
-            <img src="{{ \App\Support\InvoiceAssets::logoDataUri() }}" width="190" alt="logo" />
+            <img src="{{ \App\Support\InvoiceAssets::logoDataUri() }}" width="200" alt="logo" />
             <div class="addr" style="margin-top: 14px;">
                 329 Churchill Avenue<br>
                 New Westminster BC &nbsp;V3L 4P5<br>
@@ -52,32 +52,32 @@
             </div>
         </td>
         <td style="vertical-align: top; text-align: right;">
-            <p style="font-size: 36px; color: #0000A0; margin-top: 10px;">Invoice</p>
-            <p style="font-size: 11px; font-weight: bold; margin-top: 22px;">{{ \Carbon\Carbon::parse($invoice->invoice_date)->format('d-M-y') }}</p>
+            <p style="font-size: 36pt; color: #0000A0; margin-top: 10px;">Invoice</p>
+            <p style="font-size: 10pt; font-weight: bold; margin-top: 22px;">{{ \Carbon\Carbon::parse($invoice->invoice_date)->format('d-M-y') }}</p>
             <table style="margin-left: auto; margin-top: 8px;">
                 <tr>
-                    <td style="font-size: 11px; text-align: right; padding: 2px 14px 2px 0;">Invoice Number:</td>
-                    <td style="font-size: 11px; font-weight: bold; text-align: right; padding: 2px 0;">{{ $invoice->invoice_number }}</td>
+                    <td style="font-size: 10pt; text-align: right; padding: 2px 14px 2px 0;">Invoice Number:</td>
+                    <td style="font-size: 10pt; font-weight: bold; text-align: right; padding: 2px 0;">{{ $invoice->invoice_number }}</td>
                 </tr>
                 <tr>
-                    <td style="font-size: 11px; text-align: right; padding: 2px 14px 2px 0;">Customer Number:</td>
-                    <td style="font-size: 11px; font-weight: bold; text-align: right; padding: 2px 0;">{{ $customerNumber }}</td>
+                    <td style="font-size: 10pt; text-align: right; padding: 2px 14px 2px 0;">Customer Number:</td>
+                    <td style="font-size: 10pt; font-weight: bold; text-align: right; padding: 2px 0;">{{ $customerNumber }}</td>
                 </tr>
             </table>
         </td>
     </tr>
 </table>
 
-<div class="cust" style="margin-top: 18px;">
-    <p style="font-size: 12px; font-weight: bold;">{{ $customer->name ?? 'N/A' }}</p>
+<div class="cust" style="margin-top: 6px;">
+    <p style="font-size: 11pt; font-weight: bold;">{{ $customer->name ?? 'N/A' }}</p>
     <p>{{ $customer->address ?? '' }}</p>
     <p>{{ $customer->city ?? '' }} {{ $customer->province ?? '' }} &nbsp;&nbsp; {{ $customer->postal_code ?? '' }}</p>
 </div>
 
 <table class="fullTable items" style="margin-top: 26px;">
     <colgroup>
-        <col style="width: 13%"><col style="width: 15%"><col style="width: 14%"><col style="width: 11%">
-        <col style="width: 13%"><col style="width: 14%"><col style="width: 9%"><col style="width: 11%">
+        <col style="width: 15%"><col style="width: 16%"><col style="width: 14%"><col style="width: 19%">
+        <col style="width: 11%"><col style="width: 13%"><col style="width: 5%"><col style="width: 7%">
     </colgroup>
     <thead>
     <tr>
@@ -114,11 +114,11 @@
     </tbody>
 </table>
 
-<p style="font-size: 11px; font-weight: bold; color: #000080; margin: 18px 0 0 12px;">GST #82379 8541</p>
+<p style="font-size: 10pt; font-weight: bold; color: #000080; margin: 18px 0 0 12px;">GST #82379 8541</p>
 
 <table class="tot" style="margin: 14px 0 0 12px; page-break-inside: avoid;">
     <tr>
-        <td class="lbl" style="font-size: 11px;">Total Product Cost</td>
+        <td class="lbl" style="font-size: 10pt;">Total Product Cost</td>
         <td class="val">${{ number_format($subTotal, 2) }}</td>
     </tr>
     @foreach($flatCharges as $charge)
@@ -136,22 +136,22 @@
         <td class="val">${{ number_format($pstTotal, 2) }}</td>
     </tr>
     <tr>
-        <td class="lbl" style="font-size: 11px;">Invoice Total</td>
+        <td class="lbl" style="font-size: 10pt;">Invoice Total</td>
         <td class="val">${{ number_format($totalAmount, 2) }}</td>
     </tr>
 </table>
 
-<p style="font-size: 11px; font-weight: bold; color: #003366; margin-top: 22px;">
+<p style="font-size: 10pt; font-weight: bold; color: #003366; margin-top: 22px;">
     TERMS: &nbsp;Net 15 days, interest of 2% per month (24% per annum) charged on all overdue accounts
 </p>
-<p style="font-size: 16px; text-decoration: underline; margin: 8px 0 0 6px;">Notes:</p>
+<p style="font-size: 14pt; text-decoration: underline; margin: 8px 0 0 6px;">Notes:</p>
 @if(!empty($invoice->notes))
-    <p style="font-size: 11px; white-space: pre-line; margin: 6px 0 0 6px;">{{ $invoice->notes }}</p>
+    <p style="font-size: 10pt; white-space: pre-line; margin: 6px 0 0 6px;">{{ $invoice->notes }}</p>
 @endif
-<p style="font-size: 14px; color: #0000FF; margin-top: 18px; line-height: 1.3;">
+<p style="font-size: 12pt; color: #0000FF; margin-top: 18px; line-height: 1.3;">
     All totes must be returned within two weeks of delivery unless arrangements have been made with Iceberg. &nbsp;Late fees will apply.
 </p>
-<p style="font-size: 11px; font-weight: bold; margin: 4px 0 0 12px;">www.icebergdryice.com</p>
+<p style="font-size: 10pt; font-weight: bold; margin: 4px 0 0 12px;">www.icebergdryice.com</p>
 
 </body>
 </html>
