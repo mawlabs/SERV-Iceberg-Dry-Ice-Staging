@@ -57,7 +57,7 @@ class BillOfLadingController extends Controller
 
         $pdf = Pdf::loadView('emails.bill-of-lading-pdf', [
             'invoiceNumber'  => $invoice->invoice_number ?? '',
-            'date'           => $date ? Carbon::parse($date)->format('M d Y') : '',
+            'date'           => $date ? Carbon::parse($date)->format('F j, Y') : '',
             'customerNumber' => $order->customer->legacy_id ?? $order->customer->id ?? '',
             'consignee'      => [
                 'name'    => $order->location_name ?: ($order->customer_name ?? ''),
