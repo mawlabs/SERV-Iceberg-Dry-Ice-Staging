@@ -65,7 +65,6 @@ class BillOfLadingController extends Controller
                 'phone'   => $order->phone ?? '',
             ],
             'weightKg'       => $weightKg,
-            'signerName'     => $request->query('signer', backpack_user()->name ?? ''),
         ])->setPaper('letter')
             ->setOption('isHtml5ParserEnabled', true)
             ->setOption('isRemoteEnabled', false)

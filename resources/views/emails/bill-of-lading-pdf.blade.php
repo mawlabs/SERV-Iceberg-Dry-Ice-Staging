@@ -5,7 +5,6 @@
     $customerNumber = $customerNumber ?? '3379';
     $consignee      = $consignee      ?? ['name' => 'ACI AIRCARGO INC', 'address' => '5200 Miller Road, Suite 104 Richmond, B.C.', 'phone' => '(778) 377-7233'];
     $weightKg       = $weightKg       ?? '15.91';
-    $signerName     = $signerName     ?? 'Tyler Anderson';
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -96,11 +95,10 @@
 <div class="t" style="left:27.9pt;top:378.9pt;font-size:9pt;line-height:10.1pt;color:#000;font-weight:bold;">proper shipping name, are properly classified and packaged, have dangerous goods marks properly affixed</div>
 <div class="t" style="left:56.2pt;top:389.8pt;font-size:9pt;line-height:10.1pt;color:#000;font-weight:bold;">or displayed on them, and are in all respects in proper condition for transport according to the</div>
 <div class="t" style="left:152.2pt;top:400.7pt;font-size:9pt;line-height:10.1pt;color:#000;font-weight:bold;">Transportation of Dangerous Goods Regulations.</div>
-<div class="t" style="left:47pt;top:413pt;font-size:12pt;line-height:13.4pt;color:#000;">{{ $signerName }}</div>
 <div class="t" style="left:20pt;top:418pt;font-size:10pt;line-height:11.2pt;color:#000;font-weight:bold;">Per </div>
 <div class="t" style="left:45pt;top:431pt;font-size:10pt;line-height:11.2pt;color:#000;">for Iceberg Dry Ice Inc</div>
 <div class="t" style="left:303pt;top:418pt;font-size:10pt;line-height:11.2pt;color:#000;font-weight:bold;">Per </div>
-<div class="t" style="left:308pt;top:432pt;font-size:10pt;line-height:11.2pt;color:#000;">Accepted for ACI AIRCARGO INC</div>
+<div class="t" style="left:308pt;top:432pt;font-size:10pt;line-height:11.2pt;color:#000;">Accepted for {{ $consignee['name'] }}</div>
 <div class="t" style="left:22pt;top:465pt;font-size:10pt;line-height:11.2pt;color:#000;">Please print your name here.</div>
 <div class="t" style="left:306pt;top:465pt;font-size:10pt;line-height:11.2pt;color:#000;">Please print your name here.</div>
 <div class="t" style="left:112pt;top:482pt;font-size:12pt;line-height:13.4pt;color:#800000;font-weight:bold;">IN CASE OF DANGEROUS GOODS EMERGENCY CALL:</div>

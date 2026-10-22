@@ -26,6 +26,10 @@
     </style>
 </head>
 <body class="invoice-body">
+@php
+    // Canadian postal codes print as "V3R 6A7".
+    $fmtPostal = fn ($p) => preg_match('/^([A-Za-z]\d[A-Za-z])\s*(\d[A-Za-z]\d)$/', trim((string) $p), $m) ? strtoupper($m[1] . ' ' . $m[2]) : trim((string) $p);
+@endphp
 <table class="fullTable">
     <tr>
         <td style="vertical-align: top;">
@@ -57,7 +61,7 @@
 <div class="cust" style="margin-top: 6px;">
     <p style="font-size: 11pt; font-weight: bold;">{{ $order->customer_name ?? 'N/A' }}</p>
     <p>{{ $order->address ?? '' }}</p>
-    <p>{{ $order->city ?? '' }} {{ $order->province ?? '' }} &nbsp;&nbsp; {{ $order->postal_code ?? '' }}</p>
+    <p>{{ $order->city ?? '' }} {{ $order->province ?? '' }} &nbsp;&nbsp; {{ $fmtPostal($order->postal_code ?? '') }}</p>
 </div>
 
 <table class="fullTable items" style="margin-top: 26px;">
@@ -82,7 +86,7 @@
             <td>{{ $index + 1 }}</td>
             <td>{{ $item->product->product_name ?? 'Product' }}</td>
             <td style="text-align:right;">{{ number_format($item->unit_price, 2) }}</td>
-            <td style="text-align:right;">{{ $item->amount_of_items }} {{ $item->product->unit }}</td>
+            <td style="text-align:right;">{{ $item->amount_of_items }} {{ in_array(strtolower(trim($item->product->unit ?? '')), ['lb', 'lbs']) ? 'lb' : $item->product->unit }}</td>
             <td style="text-align:right;">{{ number_format($item->total_price, 2) }}</td>
             <td style="text-align:right;">{{ number_format($item->gst, 2) }}</td>
             <td style="text-align:right;">{{ number_format($item->pst, 2) }}</td>

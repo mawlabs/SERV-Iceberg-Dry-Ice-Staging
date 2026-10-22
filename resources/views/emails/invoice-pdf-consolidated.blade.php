@@ -27,6 +27,8 @@
 </head>
 <body>
 @php
+    // Canadian postal codes print as "V3R 6A7".
+    $fmtPostal = fn ($p) => preg_match('/^([A-Za-z]\d[A-Za-z])\s*(\d[A-Za-z]\d)$/', trim((string) $p), $m) ? strtoupper($m[1] . ' ' . $m[2]) : trim((string) $p);
     // Old design lists the Delivery row before the product row for each date.
     $sortedItems = $lineItems->values()
         ->map(fn ($item, $i) => [$item, $i])
@@ -71,7 +73,7 @@
 <div class="cust" style="margin-top: 6px;">
     <p style="font-size: 11pt; font-weight: bold;">{{ $customer->name ?? 'N/A' }}</p>
     <p>{{ $customer->address ?? '' }}</p>
-    <p>{{ $customer->city ?? '' }} {{ $customer->province ?? '' }} &nbsp;&nbsp; {{ $customer->postal_code ?? '' }}</p>
+    <p>{{ $customer->city ?? '' }} {{ $customer->province ?? '' }} &nbsp;&nbsp; {{ $fmtPostal($customer->postal_code ?? '') }}</p>
 </div>
 
 <table class="fullTable items" style="margin-top: 26px;">
@@ -83,7 +85,7 @@
     <tr>
         <th style="text-align:left;">Date</th>
         <th style="text-align:left;">PO#</th>
-        <th style="text-align:right;">Quantity lbs</th>
+        <th style="text-align:right;">Quantity</th>
         <th style="text-align:center;">Item</th>
         <th style="text-align:right;">Price/Unit</th>
         <th style="text-align:right;">Product Cost</th>
@@ -100,10 +102,20 @@
                 $unitPrice = substr($unitPrice, 0, -1);
             }
         @endphp
+        @php
+            // Quantity carries its unit: "50 lb" for ice, "1 delivery" for fee rows.
+            if ($item->product_id) {
+                $unit = strtolower(trim($item->product->unit ?? ''));
+                $unit = in_array($unit, ['lb', 'lbs']) ? 'lb' : $unit;
+                $qtyLabel = trim($item->quantity . ' ' . $unit);
+            } else {
+                $qtyLabel = $item->quantity . ' ' . strtolower(trim(preg_replace('/\s*fee$/i', '', $item->description)));
+            }
+        @endphp
         <tr class="{{ $i === $lastIndex ? 'last' : '' }}">
             <td>{{ $item->delivery_date ? \Carbon\Carbon::parse($item->delivery_date)->format('M d, y') : '' }}</td>
             <td>{{ $item->order->po ?? '' }}</td>
-            <td style="text-align:right;">{{ $item->quantity }}</td>
+            <td style="text-align:right;">{{ $qtyLabel }}</td>
             <td style="text-align:center;">{{ $item->description }}</td>
             <td style="text-align:right;">{{ $unitPrice }}</td>
             <td style="text-align:right;">{{ number_format($item->total_price, 2) }}</td>
@@ -118,7 +130,7 @@
 
 <table class="tot" style="margin: 14px 0 0 12px; page-break-inside: avoid;">
     <tr>
-        <td class="lbl" style="font-size: 10pt;">Total Product Cost</td>
+        <td class="lbl" style="font-size: 10pt;">Subtotal</td>
         <td class="val">${{ number_format($subTotal, 2) }}</td>
     </tr>
     @foreach($flatCharges as $charge)
