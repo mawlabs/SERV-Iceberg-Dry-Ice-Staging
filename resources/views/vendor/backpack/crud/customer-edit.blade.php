@@ -177,6 +177,13 @@
                                                             title="View Send History">
                                                         <i class=""></i>
                                                     </button>
+                                                    @if(in_array($invoice->payment_status, [\App\Models\Invoice::PENDING, \App\Models\Invoice::FAILED]))
+                                                        <a class="btn btn-secondary btn-view la la-edit"
+                                                           href="{{ route('admin.invoice-generator.index', ['edit' => $invoice->id]) }}"
+                                                           title="Edit Invoice">
+                                                            <i class=""></i>
+                                                        </a>
+                                                    @endif
                                                 @endif
                                             </td>
                                         </tr>

@@ -159,6 +159,8 @@ Route::group([
         Route::post('/draft/update', [InvoiceGeneratorController::class, 'updateDraft'])->name('admin.invoice-generator.draft.update');
         Route::post('/draft/discard', [InvoiceGeneratorController::class, 'discardDraft'])->name('admin.invoice-generator.draft.discard');
         Route::get('/draft/{invoice}/resume', [InvoiceGeneratorController::class, 'resumeDraft'])->name('admin.invoice-generator.draft.resume');
+        Route::get('/{invoice}/edit-data', [InvoiceGeneratorController::class, 'editData'])->name('admin.invoice-generator.edit-data');
+        Route::post('/edit/save', [InvoiceGeneratorController::class, 'saveEdit'])->name('admin.invoice-generator.edit.save');
         Route::post('/finalize', [InvoiceGeneratorController::class, 'finalize'])->name('admin.invoice-generator.finalize');
         Route::get('/{invoice}/pdf', [InvoiceGeneratorController::class, 'downloadPdf'])->name('admin.invoice-generator.pdf');
         Route::get('/invoice/{invoice}/view', [InvoiceGeneratorController::class, 'viewInvoice'])->name('consolidated.invoice.view');

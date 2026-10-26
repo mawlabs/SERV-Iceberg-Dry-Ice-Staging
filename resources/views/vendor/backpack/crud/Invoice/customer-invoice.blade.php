@@ -86,7 +86,7 @@
         {{-- STEP 2: Draft Review / Edit --}}
         <div class="table" id="draft-card" style="display:none;">
             <div class="table-header d-flex justify-content-between align-items-center">
-                <span>Draft Invoice</span>
+                <span id="draft-card-title">Draft Invoice</span>
                 <span class="text-muted" style="font-size: 14px;" id="draft-range-label"></span>
             </div>
 
@@ -218,7 +218,7 @@
             <div class="table-header">Invoice Generated</div>
             <div class="p-4 text-center">
                 <i class="la la-check-circle text-success" style="font-size: 60px;"></i>
-                <h4 class="mt-3">Invoice <span id="result-invoice-number"></span> created successfully</h4>
+                <h4 class="mt-3" id="result-title">Invoice <span id="result-invoice-number"></span> created successfully</h4>
                 <a id="result-pdf-link" href="#" target="_blank" class="btn btn-primary mt-3">
                     <i class="la la-file-pdf"></i> Download PDF
                 </a>
@@ -346,6 +346,8 @@
             font-size: 13px;
         }
 
+        #order-refs-table.editing-finalized .remove-ref-btn { display: none; }
+
         footer { display: none; }
     </style>
 @endsection
@@ -389,8 +391,16 @@
                 currentDraftId = draft.id;
 
                 const range = (draft.start_date || '') + (draft.start_date ? ' to ' : '') + (draft.end_date || '');
-                document.getElementById('draft-range-label').textContent =
-                    'Draft #' + draft.id + (range ? ' · ' + range : '');
+                const editing = draft.status === 'finalized';
+                document.getElementById('draft-range-label').textContent = editing
+                    ? 'Editing invoice #' + draft.invoice_number + ' (number and date stay as issued)'
+                    : 'Draft #' + draft.id + (range ? ' · ' + range : '');
+                document.getElementById('draft-card-title').textContent = editing ? 'Edit Invoice' : 'Draft Invoice';
+                document.getElementById('finalize-btn').innerHTML = editing
+                    ? '<i class="la la-save"></i> Save Changes'
+                    : '<i class="la la-check-circle"></i> Confirm &amp; Generate Invoice';
+                document.getElementById('invoice-date').disabled = editing;
+                document.getElementById('order-refs-table').classList.toggle('editing-finalized', editing);
 
                 // Order refs
                 const refsBody = document.getElementById('order-refs-body');
@@ -477,6 +487,7 @@
             // Send an edit action against the current draft and re-render the response.
             function sendDraftAction(payload) {
                 payload.invoice_id = currentDraftId;
+                if (currentDraft && currentDraft.status === 'finalized') payload.editing_finalized = true;
                 return postJson('{{ route('admin.invoice-generator.draft.update') }}', payload).then(data => {
                     if (data.success) renderDraft(data.draft);
                     else Swal.fire('Error', data.message || 'Update failed.', 'error');
@@ -629,6 +640,33 @@
             });
 
             document.getElementById('finalize-btn').addEventListener('click', function () {
+                if (currentDraft && currentDraft.status === 'finalized') {
+                    Swal.fire({
+                        title: 'Save changes to this invoice?',
+                        html: `Invoice #${currentDraft.invoice_number} keeps its number and date. New total: <strong>${document.getElementById('summary-total').textContent}</strong>`,
+                        icon: 'info',
+                        showCancelButton: true,
+                        confirmButtonText: 'Yes, save'
+                    }).then(result => {
+                        if (!result.isConfirmed) return;
+
+                        postJson('{{ route('admin.invoice-generator.edit.save') }}', {
+                            invoice_id: currentDraftId,
+                            notes: document.getElementById('invoice-notes').value
+                        }).then(data => {
+                            if (data.success) {
+                                document.getElementById('result-title').innerHTML = 'Invoice <span id="result-invoice-number">#' + data.invoice_number + '</span> updated successfully';
+                                document.getElementById('result-pdf-link').href = data.pdf_url;
+                                draftCard.style.display = 'none';
+                                resultCard.style.display = 'block';
+                            } else {
+                                Swal.fire('Error', data.message || 'Failed to save changes.', 'error');
+                            }
+                        });
+                    });
+                    return;
+                }
+
                 Swal.fire({
                     title: 'Generate this invoice?',
                     html: `Total amount: <strong>${document.getElementById('summary-total').textContent}</strong>`,
@@ -693,6 +731,16 @@
                     });
                 });
             });
+
+            // Auto-open a finalized invoice in edit mode when arriving from its Edit button (?edit=<id>).
+            @if(!empty($editInvoiceId))
+            fetch('{{ url('admin/invoice-generator') }}/{{ $editInvoiceId }}/edit-data', {
+                headers: { 'Accept': 'application/json' }
+            }).then(r => r.json()).then(data => {
+                if (data.success) renderDraft(data.draft);
+                else Swal.fire('Cannot edit', data.message || 'Could not load invoice.', 'error');
+            });
+            @endif
 
             // Auto-open a draft when arriving from an order-list "Generate Invoice" click (?draft=<id>).
             @if(!empty($openDraftId))

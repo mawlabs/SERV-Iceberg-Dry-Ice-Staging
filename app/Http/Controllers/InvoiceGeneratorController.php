@@ -39,10 +39,17 @@ class InvoiceGeneratorController extends Controller
             $openDraftId = optional(Invoice::draft()->find(request('draft')))->id;
         }
 
+        // Arriving from a finalized invoice's Edit button (?edit=<id>) opens it in edit mode.
+        $editInvoiceId = null;
+        if (request()->filled('edit')) {
+            $editInvoiceId = optional($this->editable(request('edit')))->id;
+        }
+
         return view('vendor.backpack.crud.Invoice.customer-invoice', [
             'customers'   => $customers,
             'drafts'      => $drafts,
             'openDraftId' => $openDraftId,
+            'editInvoiceId' => $editInvoiceId,
         ]);
     }
 
@@ -313,7 +320,10 @@ class InvoiceGeneratorController extends Controller
     {
         $request->validate(['invoice_id' => 'required|integer']);
 
-        $invoice = Invoice::draft()->find($request->invoice_id);
+        $editingFinalized = $request->boolean('editing_finalized');
+        $invoice = $editingFinalized
+            ? $this->editable($request->invoice_id)
+            : Invoice::draft()->find($request->invoice_id);
 
         if (!$invoice) {
             return response()->json([
@@ -326,6 +336,9 @@ class InvoiceGeneratorController extends Controller
 
         switch ($action) {
             case 'remove_order_ref':
+                if ($editingFinalized) {
+                    return response()->json(['success' => false, 'message' => 'Orders cannot be removed from a finalized invoice.'], 422);
+                }
                 $request->validate([
                     'invoiceable_type' => 'required|string',
                     'invoiceable_id'   => 'required',
@@ -394,6 +407,9 @@ class InvoiceGeneratorController extends Controller
                 break;
 
             case 'update_invoice_date':
+                if ($editingFinalized) {
+                    return response()->json(['success' => false, 'message' => 'The date of a finalized invoice cannot be changed.'], 422);
+                }
                 $request->validate(['invoice_date' => 'required|date']);
                 $invoice->update(['invoice_date' => Carbon::parse($request->invoice_date)->format('Y-m-d')]);
                 break;
@@ -464,6 +480,78 @@ class InvoiceGeneratorController extends Controller
             'success'    => true,
             'invoice_id' => $invoice->id,
             'pdf_url'    => route('admin.invoice-generator.pdf', $invoice->id),
+        ]);
+    }
+
+    /**
+     * A finalized invoice that can still be corrected in place: not yet paid.
+     * Its number and date stay as issued.
+     */
+    private function editable($invoiceId): ?Invoice
+    {
+        return Invoice::finalized()
+            ->whereIn('payment_status', [Invoice::PENDING, Invoice::FAILED])
+            ->find($invoiceId);
+    }
+
+    /**
+     * Load a finalized invoice into the editor in edit mode.
+     */
+    public function editData($invoiceId)
+    {
+        $invoice = $this->editable($invoiceId);
+
+        if (!$invoice) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invoice not found, or it is already paid and can no longer be edited.',
+            ], 404);
+        }
+
+        return response()->json(['success' => true, 'draft' => $this->serializeDraft($invoice)]);
+    }
+
+    /**
+     * Save corrections made to a finalized invoice. Lines, flat charges and notes are
+     * already saved as they are edited; this recomputes the total and records the change.
+     * The invoice number and date are left exactly as issued.
+     */
+    public function saveEdit(Request $request)
+    {
+        $request->validate(['invoice_id' => 'required|integer']);
+
+        $invoice = $this->editable($request->invoice_id);
+
+        if (!$invoice) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invoice not found, or it is already paid and can no longer be edited.',
+            ], 404);
+        }
+
+        $previousTotal = (float) $invoice->total_amount;
+
+        if ($request->has('notes')) {
+            $invoice->update(['notes' => $request->input('notes')]);
+        }
+
+        $this->recomputeTotal($invoice);
+        $invoice->refresh();
+
+        \Log::info('Finalized invoice edited', [
+            'invoice_id'     => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+            'user_id'        => auth()->id(),
+            'previous_total' => $previousTotal,
+            'new_total'      => (float) $invoice->total_amount,
+        ]);
+
+        return response()->json([
+            'success'        => true,
+            'invoice_id'     => $invoice->id,
+            'invoice_number' => $invoice->invoice_number,
+            'total'          => (float) $invoice->total_amount,
+            'pdf_url'        => route('admin.invoice-generator.pdf', $invoice->id),
         ]);
     }
 
@@ -879,6 +967,8 @@ class InvoiceGeneratorController extends Controller
 
         return [
             'id'           => $invoice->id,
+            'status'       => $invoice->status,
+            'invoice_number' => $invoice->invoice_number,
             'customer_id'  => $invoice->customer_id,
             'notes'        => $invoice->notes,
             'invoice_date' => $invoice->invoice_date ? Carbon::parse($invoice->invoice_date)->format('Y-m-d') : '',
