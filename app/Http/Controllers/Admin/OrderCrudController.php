@@ -484,6 +484,11 @@ class OrderCrudController extends CrudController
             'delivery_time'    => 'required',
             'notes'            => 'nullable|string',
             'origin'           => 'nullable|string|max:100',
+            'weight_lb'        => 'nullable|numeric|min:0',
+            'weight_kg'        => 'nullable|numeric|min:0',
+            'consignee_name'   => 'nullable|string|max:255',
+            'consignee_address'=> 'nullable|string|max:255',
+            'consignee_phone'  => 'nullable|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -521,7 +526,7 @@ class OrderCrudController extends CrudController
                 'origin'           => 'manual',
                 'status'           => 'valid',
                 'created_by' => auth()->user()->id,
-            ]);
+            ] + $this->bolFields($request));
 
             OrderItem::create([
                 'order_id'         => $order->id,
@@ -1413,6 +1418,24 @@ class OrderCrudController extends CrudController
     }
 
 
+    /**
+     * Bill of lading inputs from the manual order form. Blank means "not set":
+     * the BOL then falls back to the item quantity and the delivery address.
+     */
+    private function bolFields(Request $request): array
+    {
+        $text = fn ($key) => trim((string) $request->input($key)) !== '' ? trim((string) $request->input($key)) : null;
+        $num  = fn ($key) => is_numeric($request->input($key)) ? round((float) $request->input($key), 2) : null;
+
+        return [
+            'weight_lb'         => $num('weight_lb'),
+            'weight_kg'         => $num('weight_kg'),
+            'consignee_name'    => $text('consignee_name'),
+            'consignee_address' => $text('consignee_address'),
+            'consignee_phone'   => $text('consignee_phone'),
+        ];
+    }
+
     protected function handleManualOrderUpdate(Request $request, $id)
     {
         if (Order::findOrFail($id)->isInDraftInvoice()) {
@@ -1432,6 +1455,11 @@ class OrderCrudController extends CrudController
             'delivery_date'    => 'required|date',
             'delivery_time'    => 'required',
             'notes'            => 'nullable|string',
+            'weight_lb'        => 'nullable|numeric|min:0',
+            'weight_kg'        => 'nullable|numeric|min:0',
+            'consignee_name'   => 'nullable|string|max:255',
+            'consignee_address'=> 'nullable|string|max:255',
+            'consignee_phone'  => 'nullable|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -1468,7 +1496,7 @@ class OrderCrudController extends CrudController
                 'recurring'        => $request->recurring,
                 'delivery_date'    => \Carbon\Carbon::parse($request->delivery_date),
                 'notes'            => $request->notes,
-            ]);
+            ] + $this->bolFields($request));
 
             $orderItem = OrderItem::where('order_id', $order->id)->first();
 
@@ -1708,6 +1736,11 @@ class OrderCrudController extends CrudController
                 ? \Carbon\Carbon::parse($order->delivery_date)->format('H:i')
                 : '',
             'notes'            => $order->notes,
+            'weight_lb'        => $order->weight_lb,
+            'weight_kg'        => $order->weight_kg,
+            'consignee_name'   => $order->consignee_name,
+            'consignee_address'=> $order->consignee_address,
+            'consignee_phone'  => $order->consignee_phone,
         ];
 
         return view(

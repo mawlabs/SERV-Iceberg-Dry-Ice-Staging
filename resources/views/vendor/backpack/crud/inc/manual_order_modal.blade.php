@@ -200,7 +200,78 @@
                         value="{{ old('delivery_time', $defaultValues['delivery_time'] ?? '') }}">
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-lg-6">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">
+                        Dry Ice Weight (lb)
+                    </label>
+
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        class="form-control"
+                        id="weight-lb"
+                        name="weight_lb"
+                        value="{{ old('weight_lb', $defaultValues['weight_lb'] ?? '') }}">
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">
+                        Dry Ice Weight (kg) <small class="text-muted fw-normal">printed on the bill of lading</small>
+                    </label>
+
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        class="form-control"
+                        id="weight-kg"
+                        name="weight_kg"
+                        value="{{ old('weight_kg', $defaultValues['weight_kg'] ?? '') }}">
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="mb-1">
+                    <label class="form-label fw-bold">
+                        Consignee <small class="text-muted fw-normal">optional &mdash; leave blank to use the delivery address on the bill of lading</small>
+                    </label>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="mb-3">
+                    <input
+                        type="text"
+                        class="form-control"
+                        name="consignee_name"
+                        maxlength="255"
+                        placeholder="Name"
+                        value="{{ old('consignee_name', $defaultValues['consignee_name'] ?? '') }}">
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="mb-3">
+                    <input
+                        type="text"
+                        class="form-control"
+                        name="consignee_address"
+                        maxlength="255"
+                        placeholder="Address"
+                        value="{{ old('consignee_address', $defaultValues['consignee_address'] ?? '') }}">
+                </div>
+            </div>
+            <div class="col-lg-3">
+                <div class="mb-3">
+                    <input
+                        type="text"
+                        class="form-control"
+                        name="consignee_phone"
+                        maxlength="50"
+                        placeholder="Phone"
+                        value="{{ old('consignee_phone', $defaultValues['consignee_phone'] ?? '') }}">
+                </div>
+            </div>            <div class="col-md-6">
                 <div class="mb-3">
                     <label class="form-label fw-bold">
                         Notes
@@ -272,3 +343,42 @@
 
     </div>
 </form>
+
+<script>
+    // Keep the dry ice weight in lb and kg in step. Until the weight is typed in
+    // by hand it simply follows the order amount.
+    (function () {
+        const LB_PER_KG = 2.2046;
+        const $ = window.jQuery;
+        if (!$) return;
+
+        const round2 = (n) => (Math.round(n * 100) / 100).toFixed(2);
+        // Follow the order amount when no weight is saved yet, or when the saved weight
+        // is just the amount (so editing the amount later keeps them in step).
+        const savedLb = parseFloat($('#weight-lb').val());
+        const amountNow = parseFloat($('input[name="amount"]').val());
+        const state = { auto: isNaN(savedLb) || (!isNaN(amountNow) && Math.abs(savedLb - amountNow) < 0.01) };
+
+        function followAmount() {
+            const amount = parseFloat($('input[name="amount"]').val());
+            if (!state.auto) return;
+            if (isNaN(amount)) { $('#weight-lb, #weight-kg').val(''); return; }
+            $('#weight-lb').val(round2(amount));
+            $('#weight-kg').val(round2(amount / LB_PER_KG));
+        }
+
+        $('#weight-lb').off('input.bol').on('input.bol', function () {
+            state.auto = false;
+            const lb = parseFloat(this.value);
+            $('#weight-kg').val(isNaN(lb) ? '' : round2(lb / LB_PER_KG));
+        });
+        $('#weight-kg').off('input.bol').on('input.bol', function () {
+            state.auto = false;
+            const kg = parseFloat(this.value);
+            $('#weight-lb').val(isNaN(kg) ? '' : round2(kg * LB_PER_KG));
+        });
+        $('input[name="amount"]').off('input.bol').on('input.bol', followAmount);
+
+        followAmount();
+    })();
+</script>

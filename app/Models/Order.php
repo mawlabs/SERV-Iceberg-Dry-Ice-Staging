@@ -54,6 +54,11 @@ class Order extends Model
         'po',
         'created_by',
         'submission_token',
+        'weight_lb',
+        'weight_kg',
+        'consignee_name',
+        'consignee_address',
+        'consignee_phone',
     ];
 
     public function scopeToday($query)
