@@ -1436,6 +1436,28 @@ class OrderCrudController extends CrudController
         ];
     }
 
+    /**
+     * Cancel or re-open a single recurring delivery from the order modal. Refused once the
+     * delivery is on an invoice (draft or finalized).
+     */
+    public function updateRecurringStatus(Request $request, $id)
+    {
+        $request->validate(['status' => 'required|in:open,cancelled']);
+
+        $occurrence = RecurringOrder::findOrFail($id);
+
+        if (!in_array($occurrence->status, ['open', 'cancelled'], true)) {
+            return response()->json(['success' => false, 'message' => 'Only open and cancelled deliveries can be switched here.'], 422);
+        }
+        if ($occurrence->isInAnyInvoice()) {
+            return response()->json(['success' => false, 'message' => 'This delivery is on an invoice, so its status can no longer be changed.'], 422);
+        }
+
+        $occurrence->update(['status' => $request->status]);
+
+        return response()->json(['success' => true, 'status' => $occurrence->status]);
+    }
+
     protected function handleManualOrderUpdate(Request $request, $id)
     {
         if (Order::findOrFail($id)->isInDraftInvoice()) {
@@ -1460,6 +1482,7 @@ class OrderCrudController extends CrudController
             'consignee_name'   => 'nullable|string|max:255',
             'consignee_address'=> 'nullable|string|max:255',
             'consignee_phone'  => 'nullable|string|max:50',
+            'status'           => 'nullable|in:valid,cancelled,completed,skip',
         ]);
 
         if ($validator->fails()) {
@@ -1474,6 +1497,19 @@ class OrderCrudController extends CrudController
             DB::beginTransaction();
 
             $order = Order::findOrFail($id);
+
+            // Status can be switched between valid and cancelled, but never once the order is on an invoice.
+            $newStatus = $request->input('status');
+            if ($newStatus && $newStatus !== $order->status) {
+                if (!in_array($newStatus, [Order::VALID, Order::CANCELLED], true) || !in_array($order->status, [Order::VALID, Order::CANCELLED], true)) {
+                    DB::rollBack();
+                    return response()->json(['success' => false, 'message' => 'Only valid and cancelled can be switched here.'], 422);
+                }
+                if ($order->isInAnyInvoice()) {
+                    DB::rollBack();
+                    return response()->json(['success' => false, 'message' => 'This order is on an invoice, so its status can no longer be changed.'], 422);
+                }
+            }
 
             $customer = Customer::findOrFail($request->customer_id);
             $product  = Product::findOrFail($request->product);
@@ -1496,7 +1532,7 @@ class OrderCrudController extends CrudController
                 'recurring'        => $request->recurring,
                 'delivery_date'    => \Carbon\Carbon::parse($request->delivery_date),
                 'notes'            => $request->notes,
-            ] + $this->bolFields($request));
+            ] + $this->bolFields($request) + ($newStatus && $newStatus !== $order->status ? ['status' => $newStatus] : []));
 
             $orderItem = OrderItem::where('order_id', $order->id)->first();
 
@@ -1754,6 +1790,7 @@ class OrderCrudController extends CrudController
                 'defaultValues'   => $defaultValues,
                 'order'           => $order,
                 'lockedByDraftInvoice' => $order->isInDraftInvoice(),
+                'statusLocked'    => $order->isInAnyInvoice(),
             ]
         );
     }
@@ -1838,6 +1875,7 @@ class OrderCrudController extends CrudController
                 'recurring' => $recurring,
                 'status' => $status,
                 'showBillOfLading' => true, // admin only; the customer dashboard shares this view
+                'canChangeStatus'  => $order && $order->recurringOrders->first() && !$order->recurringOrders->first()->isInAnyInvoice(),
             ];
 //            dd($data);
             return view('website.customer.partials.order_details', $data);

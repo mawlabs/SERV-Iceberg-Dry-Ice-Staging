@@ -67,6 +67,14 @@
                                         // Get status from recurring table if it's a recurring order
                                         $orderStatus = $recurring ? $order->recurringOrders->first()->status : $order->status;
                                     @endphp
+                                    @if(($canChangeStatus ?? false) && $recurring && in_array($orderStatus, ['open', 'cancelled']))
+                                        <select class="form-select form-select-sm occurrence-status-select"
+                                                data-current="{{ $orderStatus }}"
+                                                data-url="{{ route('admin.orders.recurring.status', $order->recurringOrders->first()->id) }}">
+                                            <option value="open" @selected($orderStatus === 'open')>Open</option>
+                                            <option value="cancelled" @selected($orderStatus === 'cancelled')>Cancelled</option>
+                                        </select>
+                                    @else
                                     <span class="badge
                                         @if($orderStatus == 'completed') badge-success
                                         @elseif($orderStatus == 'pending') badge-warning
@@ -75,6 +83,7 @@
                                         @endif">
                                         {{ ucfirst($orderStatus) }}
                                     </span>
+                                    @endif
                                 </div>
                             </div>
                         </div>

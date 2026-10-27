@@ -7,6 +7,9 @@ class Invoice extends Model
 
     const PENDING = 'pending';
     const PAID = 'paid';
+
+    // First invoice number issued, continuing the numbering of the previous invoicing system.
+    const FIRST_INVOICE_NUMBER = 11000;
     const FAILED = 'failed';
 
     // Lifecycle status (separate from payment_status).
@@ -92,7 +95,7 @@ class Invoice extends Model
             ->orderByRaw('CAST(invoice_number AS UNSIGNED) DESC')
             ->value('invoice_number');
 
-        return (string) ($last < 3000 ? 3000 : $last + 1);
+        return (string) ($last < self::FIRST_INVOICE_NUMBER ? self::FIRST_INVOICE_NUMBER : $last + 1);
     }
 
     // Check if this is a recurring invoice

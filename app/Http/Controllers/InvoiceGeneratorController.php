@@ -114,10 +114,9 @@ class InvoiceGeneratorController extends Controller
             ->whereNotIn('id', $claimedRecurringIds)
             ->whereBetween('scheduled_delivery_date', [$startDate, $endDate])
             ->whereHas('order', function ($q) use ($customerId) {
-                // A cancelled / skipped / deleted parent cancels its whole series.
-                $q->where('customer_id', $customerId)
-                    ->where('origin', 'manual')
-                    ->whereIn('status', [Order::VALID, Order::COMPLETED]);
+                // Billing follows each delivery's own status: a discontinued series still owes
+                // for the deliveries made before it was cancelled.
+                $q->where('customer_id', $customerId)->where('origin', 'manual');
             })
             ->with(['order.items.product'])
             ->get();

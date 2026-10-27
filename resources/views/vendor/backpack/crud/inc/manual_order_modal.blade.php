@@ -271,7 +271,31 @@
                         placeholder="Phone"
                         value="{{ old('consignee_phone', $defaultValues['consignee_phone'] ?? '') }}">
                 </div>
-            </div>            <div class="col-md-6">
+            </div>            @if($isEditMode)
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">
+                            Status
+                            @if($order->recurring === \App\Models\Order::RECURRING)
+                                <small class="text-muted fw-normal">cancelling cancels the whole recurring series</small>
+                            @endif
+                        </label>
+
+                        @php $statusLocked = $statusLocked ?? false; @endphp
+                        <select class="form-select" name="status" @disabled($statusLocked)>
+                            <option value="valid" @selected($order->status === 'valid')>Valid</option>
+                            <option value="cancelled" @selected($order->status === 'cancelled')>Cancelled</option>
+                            @if(in_array($order->status, ['completed', 'skip']))
+                                <option value="{{ $order->status }}" selected>{{ ucfirst($order->status) }}</option>
+                            @endif
+                        </select>
+                        @if($statusLocked)
+                            <small class="text-muted">This order is on an invoice, so its status can't be changed.</small>
+                        @endif
+                    </div>
+                </div>
+            @endif
+            <div class="col-md-6">
                 <div class="mb-3">
                     <label class="form-label fw-bold">
                         Notes

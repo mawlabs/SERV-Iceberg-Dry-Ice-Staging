@@ -1716,6 +1716,33 @@
         $("#orderSummaryModal").modal('hide');
     }
 
+        // Cancel / re-open a single recurring delivery from its modal (admin only).
+        $(document).on('change', '.occurrence-status-select', function () {
+            const select = this;
+            const previous = select.dataset.current;
+            fetch(select.dataset.url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: select.value })
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    select.dataset.current = select.value;
+                    Swal.fire({ icon: 'success', title: 'Status updated', timer: 1200, showConfirmButton: false })
+                        .then(() => location.reload());
+                } else {
+                    select.value = previous;
+                    Swal.fire('Cannot change status', data.message || 'Update failed.', 'error');
+                }
+            }).catch(() => {
+                select.value = previous;
+                Swal.fire('Error', 'Update failed.', 'error');
+            });
+        });
+
 
     document.addEventListener('DOMContentLoaded', function () {
 

@@ -117,6 +117,17 @@ class Order extends Model
             ->exists();
     }
 
+    /**
+     * True when this order itself is on any invoice, draft or finalized. Used to stop its
+     * status being changed under an invoice. (A recurring parent whose deliveries were
+     * invoiced is not locked: cancelling the series does not change those invoices.)
+     */
+    public function isInAnyInvoice(): bool
+    {
+        return !is_null($this->invoice_id)
+            || InvoiceOrders::where('invoiceable_type', self::class)->where('invoiceable_id', $this->id)->exists();
+    }
+
     public function nextRecurringOrder()
     {
         return $this->recurringOrders()

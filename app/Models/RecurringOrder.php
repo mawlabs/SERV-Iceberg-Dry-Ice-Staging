@@ -23,6 +23,13 @@ class RecurringOrder extends Model
     ];
 
 
+    /** On any invoice, draft or finalized. */
+    public function isInAnyInvoice(): bool
+    {
+        return !is_null($this->invoice_id)
+            || InvoiceOrders::where('invoiceable_type', self::class)->where('invoiceable_id', $this->id)->exists();
+    }
+
     public function invoice()
     {
         return $this->morphOne(Invoice::class, 'invoiceable');

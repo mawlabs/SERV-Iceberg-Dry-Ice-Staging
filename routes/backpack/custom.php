@@ -226,6 +226,7 @@ Route::group([
 
     Route::get('orders/manual/modal/create',[OrderCrudController::class, 'manualCreateModal'])->name('admin.orders.manual.modal.create');
     Route::get('orders/manual/modal/{id}/edit',[OrderCrudController::class, 'manualEditModal'])->name('admin.orders.manual.modal.edit');
+    Route::post('orders/recurring/{id}/status', [OrderCrudController::class, 'updateRecurringStatus'])->name('admin.orders.recurring.status');
 
     Route::get('/customers/search', [CustomersCrudController::class, 'searchCustomers'])
         ->name('admin.customers.search');
