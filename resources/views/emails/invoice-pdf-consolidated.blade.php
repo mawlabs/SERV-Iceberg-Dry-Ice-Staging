@@ -74,6 +74,9 @@
     <p style="font-size: 11pt; font-weight: bold;">{{ $customer->name ?? 'N/A' }}</p>
     <p>{{ $customer->address ?? '' }}</p>
     <p>{{ $customer->city ?? '' }} {{ $customer->province ?? '' }} &nbsp;&nbsp; {{ $fmtPostal($customer->postal_code ?? '') }}</p>
+    @if(filled($customer->attention ?? null))
+        <p>Attention: {{ $customer->attention }}</p>
+    @endif
 </div>
 
 <table class="fullTable items" style="margin-top: 26px;">
@@ -85,7 +88,7 @@
     <tr>
         <th style="text-align:left;">Date</th>
         <th style="text-align:left;">PO#</th>
-        <th style="text-align:right;">Quantity</th>
+        <th style="text-align:right;">Quantity lbs</th>
         <th style="text-align:center;">Item</th>
         <th style="text-align:right;">Price/Unit</th>
         <th style="text-align:right;">Product Cost</th>
@@ -102,20 +105,10 @@
                 $unitPrice = substr($unitPrice, 0, -1);
             }
         @endphp
-        @php
-            // Quantity carries its unit: "50 lb" for ice, "1 delivery" for fee rows.
-            if ($item->product_id) {
-                $unit = strtolower(trim($item->product->unit ?? ''));
-                $unit = in_array($unit, ['lb', 'lbs']) ? 'lb' : $unit;
-                $qtyLabel = trim($item->quantity . ' ' . $unit);
-            } else {
-                $qtyLabel = $item->quantity . ' ' . strtolower(trim(preg_replace('/\s*fee$/i', '', $item->description)));
-            }
-        @endphp
         <tr class="{{ $i === $lastIndex ? 'last' : '' }}">
             <td>{{ $item->delivery_date ? \Carbon\Carbon::parse($item->delivery_date)->format('M d, y') : '' }}</td>
             <td>{{ $item->order->po ?? '' }}</td>
-            <td style="text-align:right;">{{ $qtyLabel }}</td>
+            <td style="text-align:right;">{{ $item->quantity }}</td>
             <td style="text-align:center;">{{ $item->description }}</td>
             <td style="text-align:right;">{{ $unitPrice }}</td>
             <td style="text-align:right;">{{ number_format($item->total_price, 2) }}</td>

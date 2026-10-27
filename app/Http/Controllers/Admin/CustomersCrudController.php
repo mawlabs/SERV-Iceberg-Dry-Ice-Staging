@@ -116,6 +116,7 @@ class CustomersCrudController extends CrudController
             'city' => 'required|string|max:100',
             'postal_code' => 'required|string|max:20',
             'province' => 'required|in:BC,AB',
+            'attention' => 'nullable|string|max:255',
         ]);
 
         try {
@@ -133,6 +134,7 @@ class CustomersCrudController extends CrudController
                 'postal_code' => $request->postal_code,
                 'province' => $request->province,
                 'supply_location_id' => $request->supply_location_id,
+                'attention' => filled($request->attention) ? trim($request->attention) : null,
             ]);
 
             // Update or create default address in customer_addresses table

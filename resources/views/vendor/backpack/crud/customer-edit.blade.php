@@ -62,6 +62,12 @@
                                        value="{{ old('phone', $entry->phone ?? '') }}" placeholder="10 digits only" required>
                             </div>
 
+                            <div class="form-group col-md-4">
+                                <label for="attention">Attention <small class="text-muted">optional &mdash; person receiving the invoice</small></label>
+                                <input type="text" class="form-control" id="attention" name="attention" maxlength="255"
+                                       value="{{ old('attention', $entry->attention ?? '') }}" placeholder="Attention">
+                            </div>
+
                             <div class="col-12">
                                 <h5 class="mt-3 mb-3"><i class="la la-map-marker"></i> Primary Address</h5>
                             </div>

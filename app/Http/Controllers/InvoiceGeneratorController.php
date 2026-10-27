@@ -93,6 +93,16 @@ class InvoiceGeneratorController extends Controller
             })
             ->whereNull('invoice_id')
             ->whereNotIn('id', $claimedOrderIds)
+            // A recurring parent that also has an occurrence on its own date would be billed twice.
+            ->where(function ($q) {
+                $q->where('recurring', '!=', Order::RECURRING)
+                    ->orWhereNotExists(function ($sub) {
+                        $sub->select(DB::raw(1))->from('recurring_orders')
+                            ->whereColumn('recurring_orders.order_id', 'orders.id')
+                            ->whereRaw('DATE(recurring_orders.scheduled_delivery_date) = DATE(orders.delivery_date)')
+                            ->where('recurring_orders.status', '!=', RecurringOrder::CANCELLED);
+                    });
+            })
             ->whereBetween('delivery_date', [$startDate, $endDate . ' 23:59:59'])
             ->with(['items.product'])
             ->get();
@@ -104,12 +114,15 @@ class InvoiceGeneratorController extends Controller
             ->whereNotIn('id', $claimedRecurringIds)
             ->whereBetween('scheduled_delivery_date', [$startDate, $endDate])
             ->whereHas('order', function ($q) use ($customerId) {
-                $q->where('customer_id', $customerId)->where('origin', 'manual');
+                // A cancelled / skipped / deleted parent cancels its whole series.
+                $q->where('customer_id', $customerId)
+                    ->where('origin', 'manual')
+                    ->whereIn('status', [Order::VALID, Order::COMPLETED]);
             })
             ->with(['order.items.product'])
             ->get();
 
-        $invoice = $this->createDraftFromOrders($customerId, $orders, $recurringOrders, $pricing);
+        $invoice = $this->createDraftFromOrders($customerId, $orders, $recurringOrders, $pricing, $startDate, $endDate);
 
         if (!$invoice) {
             return response()->json([
@@ -131,7 +144,7 @@ class InvoiceGeneratorController extends Controller
      * via invoice_orders. Returns null if there is nothing invoiceable.
      * Shared by buildDraft (customer + date range) and buildDraftFromOrder.
      */
-    private function createDraftFromOrders($customerId, $orders, $recurringOrders, $pricing): ?Invoice
+    private function createDraftFromOrders($customerId, $orders, $recurringOrders, $pricing, $periodStart = null, $periodEnd = null): ?Invoice
     {
         $lineItems = [];
         $orderRefs = [];
@@ -188,7 +201,7 @@ class InvoiceGeneratorController extends Controller
             $flatCharges[] = ['charge_key' => 'other_charges', 'label' => null, 'amount' => (float) $pricing->other_charges];
         }
 
-        return DB::transaction(function () use ($customerId, $orderRefs, $lineItems, $flatCharges) {
+        return DB::transaction(function () use ($customerId, $orderRefs, $lineItems, $flatCharges, $periodStart, $periodEnd) {
             $invoice = Invoice::create([
                 'status'             => Invoice::STATUS_DRAFT,
                 'invoice_number'     => null,
@@ -198,6 +211,8 @@ class InvoiceGeneratorController extends Controller
                 'parent_invoice_id'  => null,
                 'recurring_sequence' => 1,
                 'invoice_date'       => now()->format('Y-m-d'),
+                'period_start'       => $periodStart,
+                'period_end'         => $periodEnd,
                 'customer_id'        => $customerId,
             ]);
 
@@ -930,6 +945,19 @@ class InvoiceGeneratorController extends Controller
             ];
         }
 
+        // Flag a one-time order that falls on the same day as a recurring delivery: it may be a
+        // genuine extra order, or a duplicate / cancelled one, so the admin should look.
+        $datesOf = fn ($type) => collect($orderRefs)->where('order_type', $type)
+            ->map(fn ($r) => substr($r['delivery_date'], 0, 10))->filter()->all();
+        $oneTimeDates   = $datesOf('one_time');
+        $recurringDates = $datesOf('recurring');
+        foreach ($orderRefs as &$ref) {
+            $day = substr($ref['delivery_date'], 0, 10);
+            $ref['possible_duplicate'] = $day !== ''
+                && in_array($day, $ref['order_type'] === 'one_time' ? $recurringDates : $oneTimeDates, true);
+        }
+        unset($ref);
+
         // Chronological; within a date the Delivery row comes first, then creation order.
         $orderRefs = collect($orderRefs)->sortBy('delivery_date')->values()->all();
 
@@ -972,6 +1000,8 @@ class InvoiceGeneratorController extends Controller
             'customer_id'  => $invoice->customer_id,
             'notes'        => $invoice->notes,
             'invoice_date' => $invoice->invoice_date ? Carbon::parse($invoice->invoice_date)->format('Y-m-d') : '',
+            'period_start' => $invoice->period_start ? Carbon::parse($invoice->period_start)->format('Y-m-d') : null,
+            'period_end'   => $invoice->period_end ? Carbon::parse($invoice->period_end)->format('Y-m-d') : null,
             'start_date'   => $dates ? collect($dates)->min()->format('Y-m-d') : '',
             'end_date'     => $dates ? collect($dates)->max()->format('Y-m-d') : '',
             'order_refs'   => $orderRefs,

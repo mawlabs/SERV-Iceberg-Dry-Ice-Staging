@@ -28,7 +28,9 @@ class Invoice extends Model
         'transaction_json',
         'customer_id',
         'paid_at',
-        'notes'
+        'notes',
+        'period_start',
+        'period_end',
     ];
 
     public function scopeDraft($query)

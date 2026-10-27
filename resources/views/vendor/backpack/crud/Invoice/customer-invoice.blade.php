@@ -380,6 +380,16 @@
                 });
             }
 
+            // Default the range to the current month (first to last day) unless a value is already set.
+            (function () {
+                const now = new Date();
+                const iso = (d) => d.toLocaleDateString('en-CA');
+                const start = document.getElementById('gen-start-date');
+                const end = document.getElementById('gen-end-date');
+                if (start && !start.value) start.value = iso(new Date(now.getFullYear(), now.getMonth(), 1));
+                if (end && !end.value) end.value = iso(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+            })();
+
             function fmt(n) {
                 return '$' + Number(n).toFixed(2);
             }
@@ -390,7 +400,10 @@
                 currentDraft = draft;
                 currentDraftId = draft.id;
 
-                const range = (draft.start_date || '') + (draft.start_date ? ' to ' : '') + (draft.end_date || '');
+                // Show the range the admin selected, not the dates of the orders that happened to be found.
+                const rangeStart = draft.period_start || draft.start_date || '';
+                const rangeEnd   = draft.period_end || draft.end_date || '';
+                const range = rangeStart + (rangeStart ? ' to ' : '') + rangeEnd;
                 const editing = draft.status === 'finalized';
                 document.getElementById('draft-range-label').textContent = editing
                     ? 'Editing invoice #' + draft.invoice_number + ' (number and date stay as issued)'
@@ -410,7 +423,7 @@
                     refsBody.insertAdjacentHTML('beforeend', `
                 <tr>
                     <td><span class="badge-order-type ${badgeClass}">${ref.order_type}</span></td>
-                    <td>${ref.label}</td>
+                    <td>${ref.label}${ref.possible_duplicate ? ' <span class="badge bg-warning text-dark" title="A one-time order and a recurring delivery fall on the same day. Remove one if it is a duplicate or was cancelled.">Same day as another order - check</span>' : ''}</td>
                     <td>${ref.delivery_date ?? ''}</td>
                     <td>
                         <button class="remove-ref-btn" data-type="${ref.invoiceable_type}" data-id="${ref.invoiceable_id}" title="Remove from invoice">
