@@ -209,8 +209,9 @@ class InvoiceGeneratorController extends Controller
                 'payment_status'     => 'pending',
                 'parent_invoice_id'  => null,
                 'recurring_sequence' => 1,
-                'invoice_date'       => now()->format('Y-m-d'),
-                'period_start'       => $periodStart,
+                // Defaults to the last day of the selected range; today when built from a single order.
+                'invoice_date'       => $periodEnd ? Carbon::parse($periodEnd)->format('Y-m-d') : now()->format('Y-m-d'),
+                'period_start'     => $periodStart,
                 'period_end'         => $periodEnd,
                 'customer_id'        => $customerId,
             ]);
