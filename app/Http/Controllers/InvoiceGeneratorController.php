@@ -80,21 +80,25 @@ class InvoiceGeneratorController extends Controller
             $usingDefaultPricing = true;
         }
 
-        // Orders already reserved by ANY invoice (draft or finalized) via the
-        // invoice_orders pivot must not be pulled into a second draft.
-        $claimedOrderIds = InvoiceOrders::where('invoiceable_type', Order::class)
+        // Orders already reserved by ANY invoice (draft or finalized) via the invoice_orders
+        // pivot, or already marked paid, are normally left out of a new draft. The admin can
+        // opt in to include them, accepting that an order may then appear on two invoices.
+        $includeInvoiced = $request->boolean('include_invoiced');
+
+        $claimedOrderIds = $includeInvoiced ? [] : InvoiceOrders::where('invoiceable_type', Order::class)
             ->pluck('invoiceable_id')->all();
-        $claimedRecurringIds = InvoiceOrders::where('invoiceable_type', RecurringOrder::class)
+        $claimedRecurringIds = $includeInvoiced ? [] : InvoiceOrders::where('invoiceable_type', RecurringOrder::class)
             ->pluck('invoiceable_id')->all();
 
         // ---- One-time orders ----
         $orders = Order::where('customer_id', $customerId)
             ->where('origin', 'manual')
             ->whereIn('status', ['valid', 'completed'])
-            ->where(function ($q) {
-                $q->whereNull('payment_status')->orWhere('payment_status', 'unpaid');
+            ->when(!$includeInvoiced, function ($q) {
+                $q->where(function ($q) {
+                    $q->whereNull('payment_status')->orWhere('payment_status', 'unpaid');
+                })->whereNull('invoice_id');
             })
-            ->whereNull('invoice_id')
             ->whereNotIn('id', $claimedOrderIds)
             // A recurring parent that also has an occurrence on its own date would be billed twice.
             ->where(function ($q) {
@@ -112,8 +116,7 @@ class InvoiceGeneratorController extends Controller
 
         // ---- Recurring orders ----
         $recurringOrders = RecurringOrder::whereIn('status', ['open', 'completed'])
-            ->whereNull('recurring_payment_status')
-            ->whereNull('invoice_id')
+            ->when(!$includeInvoiced, fn ($q) => $q->whereNull('recurring_payment_status')->whereNull('invoice_id'))
             ->whereNotIn('id', $claimedRecurringIds)
             ->whereBetween('scheduled_delivery_date', [$startDate, $endDate])
             ->whereHas('order', function ($q) use ($customerId) {
@@ -1043,12 +1046,27 @@ class InvoiceGeneratorController extends Controller
                 $dates[] = Carbon::parse($date);
             }
 
+            // Other invoices this order is already on (only possible when the admin chose to
+            // include invoiced orders), and whether it is marked paid.
+            $otherInvoices = Invoice::whereIn('id', InvoiceOrders::where('invoiceable_type', $ref->invoiceable_type)
+                    ->where('invoiceable_id', $ref->invoiceable_id)
+                    ->where('invoice_id', '!=', $invoice->id)
+                    ->select('invoice_id'))
+                ->get()
+                ->map(fn ($i) => $i->isDraft() ? 'draft #' . $i->id : '#' . $i->invoice_number)
+                ->all();
+            $markedPaid = $ref->invoiceable_type === RecurringOrder::class
+                ? !empty($rec?->recurring_payment_status)
+                : (($order->payment_status ?? null) === 'paid');
+
             $orderRefs[] = [
                 'invoiceable_type' => $ref->invoiceable_type,
                 'invoiceable_id'   => $ref->invoiceable_id,
                 'order_type'       => $ref->order_type,
                 'label'            => $label,
                 'delivery_date'    => $date ? Carbon::parse($date)->format('Y-m-d H:i') : '',
+                'also_on'          => $otherInvoices,
+                'marked_paid'      => $markedPaid,
             ];
         }
 

@@ -44,6 +44,13 @@
                         </button>
                     </div>
                 </div>
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" id="gen-include-invoiced">
+                    <label class="form-check-label" for="gen-include-invoiced">
+                        Include orders already invoiced or marked paid
+                        <small class="text-muted">&mdash; they may then appear on more than one invoice, so check for duplicates</small>
+                    </label>
+                </div>
             </div>
         </div>
 
@@ -465,7 +472,7 @@
                     refsBody.insertAdjacentHTML('beforeend', `
                 <tr>
                     <td><span class="badge-order-type ${badgeClass}">${ref.order_type}</span></td>
-                    <td>${ref.label}${ref.possible_duplicate ? ' <span class="badge bg-warning text-dark" title="A one-time order and a recurring delivery fall on the same day. Remove one if it is a duplicate or was cancelled.">Same day as another order - check</span>' : ''}</td>
+                    <td>${ref.label}${(ref.also_on && ref.also_on.length) ? ' <span class="badge bg-danger" title="This order is already on another invoice. Remove it here if that would bill it twice.">Already on invoice ' + ref.also_on.join(', ') + '</span>' : ''}${ref.marked_paid ? ' <span class="badge bg-secondary" title="This order is marked paid in the system.">Marked paid</span>' : ''}${ref.possible_duplicate ? ' <span class="badge bg-warning text-dark" title="A one-time order and a recurring delivery fall on the same day. Remove one if it is a duplicate or was cancelled.">Same day as another order - check</span>' : ''}</td>
                     <td>${ref.delivery_date ?? ''}</td>
                     <td>
                         <button class="remove-ref-btn" data-type="${ref.invoiceable_type}" data-id="${ref.invoiceable_id}" title="Remove from invoice">
@@ -567,7 +574,8 @@
                 postJson('{{ route('admin.invoice-generator.draft') }}', {
                     customer_id: customerId,
                     start_date: startDate,
-                    end_date: endDate
+                    end_date: endDate,
+                    include_invoiced: document.getElementById('gen-include-invoiced').checked
                 }).then(data => {
                     if (data.success) {
                         renderDraft(data.draft);
