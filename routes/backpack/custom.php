@@ -164,6 +164,7 @@ Route::group([
         Route::post('/finalize', [InvoiceGeneratorController::class, 'finalize'])->name('admin.invoice-generator.finalize');
         Route::get('/{invoice}/pdf', [InvoiceGeneratorController::class, 'downloadPdf'])->name('admin.invoice-generator.pdf');
         Route::delete('/invoice/{invoice}', [InvoiceGeneratorController::class, 'deleteInvoice'])->name('consolidated.invoice.delete');
+        Route::post('/invoice/{invoice}/paid', [InvoiceGeneratorController::class, 'markPaid'])->name('consolidated.invoice.paid');
         Route::get('/invoice/{invoice}/view', [InvoiceGeneratorController::class, 'viewInvoice'])->name('consolidated.invoice.view');
         Route::post('/invoice/{invoice}/email', [InvoiceGeneratorController::class, 'sendInvoiceEmail'])->name('consolidated.invoice.email');
         Route::get('/invoice/{invoice}/email-history', [InvoiceGeneratorController::class, 'emailHistory'])->name('consolidated.invoice.email-history');

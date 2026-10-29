@@ -191,6 +191,11 @@
                                                         <i class=""></i>
                                                     </button>
                                                     @if(in_array($invoice->payment_status, [\App\Models\Invoice::PENDING, \App\Models\Invoice::FAILED]))
+                                                        <button class="btn btn-success btn-view la la-check-circle mark-paid-btn"
+                                                                onclick="markInvoicePaid('{{ route('consolidated.invoice.paid', $invoice->id) }}', '#{{ $invoice->invoice_number }}')"
+                                                                title="Payment Done">
+                                                            <i class=""></i>
+                                                        </button>
                                                         <a class="btn btn-secondary btn-view la la-edit"
                                                            href="{{ route('admin.invoice-generator.index', ['edit' => $invoice->id]) }}"
                                                            title="Edit Invoice">
@@ -740,6 +745,36 @@
                 invoiceModalBody.innerHTML = '';
             });
         });
+
+        function markInvoicePaid(url, label) {
+            Swal.fire({
+                title: 'Payment received?',
+                text: `Are you sure the payment has been received from the customer for invoice ${label}? The invoice and all of its orders will be marked as paid.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, payment received',
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    }
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire('Marked as paid', data.message, 'success').then(() => window.location.reload());
+                        } else {
+                            Swal.fire('Cannot mark as paid', data.message, 'error');
+                        }
+                    })
+                    .catch(() => Swal.fire('Error', 'Failed to mark the invoice as paid', 'error'));
+            });
+        }
 
         function deleteInvoice(url, label) {
             Swal.fire({

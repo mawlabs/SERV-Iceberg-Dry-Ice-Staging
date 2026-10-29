@@ -634,6 +634,39 @@ class InvoiceGeneratorController extends Controller
     }
 
     /**
+     * Payment received: mark a finalized, unpaid invoice and every order and delivery on it
+     * as paid. Idempotent, and no email is sent (account-holder invoices are sent by hand).
+     */
+    public function markPaid($invoiceId)
+    {
+        $invoice = Invoice::finalized()->whereNotNull('customer_id')->findOrFail($invoiceId);
+
+        if ($invoice->payment_status === Invoice::PAID) {
+            return response()->json(['success' => false, 'message' => 'This invoice is already marked paid.'], 422);
+        }
+
+        DB::transaction(function () use ($invoice) {
+            $invoice->update(['payment_status' => Invoice::PAID, 'paid_at' => now()]);
+
+            foreach (InvoiceOrders::where('invoice_id', $invoice->id)->get() as $link) {
+                if ($link->invoiceable_type === RecurringOrder::class) {
+                    RecurringOrder::where('id', $link->invoiceable_id)->update(['recurring_payment_status' => 1]);
+                } else {
+                    Order::where('id', $link->invoiceable_id)->update(['payment_status' => 'paid']);
+                }
+            }
+
+            // Anything stamped with this invoice but missing from the pivot.
+            Order::where('invoice_id', $invoice->id)->update(['payment_status' => 'paid']);
+            RecurringOrder::where('invoice_id', $invoice->id)->update(['recurring_payment_status' => 1]);
+        });
+
+        \Log::info('Invoice marked paid', ['invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number, 'user_id' => auth()->id()]);
+
+        return response()->json(['success' => true, 'message' => "Invoice #{$invoice->invoice_number} marked as paid, along with its orders."]);
+    }
+
+    /**
      * Delete an account-holder invoice, draft or finalized, and release its orders and
      * deliveries so they can be invoiced again (lines, charges, pivot rows and email logs
      * cascade; orders.invoice_id is set null by the foreign key). A paid invoice is refused
