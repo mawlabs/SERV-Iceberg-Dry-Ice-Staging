@@ -122,12 +122,54 @@
                                     <th>Total</th>
                                     <th>GST</th>
                                     <th>PST</th>
+                                    <th></th>
                                 </tr>
                                 </thead>
                                 <tbody id="line-items-body">
                                 </tbody>
                             </table>
                         </div>
+
+                        <h5 class="mb-2"><i class="la la-plus-circle"></i> Add Line Item</h5>
+                        <div class="row g-2 align-items-end mb-1">
+                            <div class="col-md-2">
+                                <label class="form-label small mb-0" for="new-line-date">Date</label>
+                                <input type="date" id="new-line-date" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-0" for="new-line-item">Item</label>
+                                <select id="new-line-item" class="form-select form-select-sm">
+                                    <optgroup label="Products">
+                                        @foreach($products as $product)
+                                            <option value="product:{{ $product->id }}">{{ $product->product_name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                    <optgroup label="Fees">
+                                        <option value="fee:delivery">Delivery</option>
+                                        <option value="fee:pickup">Pickup Fee</option>
+                                        <option value="fee:hazmat">Hazmat Fee</option>
+                                    </optgroup>
+                                    <option value="custom">Custom item...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small mb-0" for="new-line-qty">Qty</label>
+                                <input type="number" id="new-line-qty" class="form-control form-control-sm" value="1" min="1">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small mb-0" for="new-line-price">Unit price</label>
+                                <input type="number" id="new-line-price" class="form-control form-control-sm" placeholder="Auto" step="0.001" min="0">
+                            </div>
+                            <div class="col-md-3">
+                                <button id="add-line-btn" class="btn btn-add btn-sm w-100">Add Line</button>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3" id="new-line-description-row" style="display:none;">
+                            <div class="col-md-12">
+                                <input type="text" id="new-line-description" class="form-control form-control-sm" placeholder="Description of the custom item" maxlength="255">
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mb-3">Price is filled in from the customer's pricing when left blank. Lines added here are not tied to an order.</small>
 
                         <h5 class="mb-2"><i class="la la-plus-circle"></i> Add Flat Charge / Discount</h5>
                         <div class="row g-2 align-items-end mb-3">
@@ -321,7 +363,7 @@
             vertical-align: middle;
         }
 
-        .remove-ref-btn, .remove-charge-btn {
+        .remove-ref-btn, .remove-charge-btn, .remove-line-btn {
             background: none;
             border: none;
             color: #d33;
@@ -449,6 +491,7 @@
                     <td>${fmt(li.total_price)}</td>
                     <td>${fmt(li.gst)}</td>
                     <td>${fmt(li.pst)}</td>
+                    <td>${li.manual ? `<button class="remove-line-btn" data-id="${li.id}" title="Remove this line"><i class="la la-times-circle"></i></button>` : ''}</td>
                 </tr>
             `);
                 });
@@ -471,6 +514,9 @@
 
                 document.getElementById('invoice-notes').value = draft.notes || '';
                 document.getElementById('invoice-date').value = draft.invoice_date || '';
+                // New hand-added lines default to the last day of the invoice period.
+                const newLineDate = document.getElementById('new-line-date');
+                if (!newLineDate.value) newLineDate.value = draft.period_end || draft.end_date || draft.invoice_date || '';
 
                 document.getElementById('summary-subtotal').textContent  = fmt(draft.totals.sub_total);
                 document.getElementById('summary-gsttotal').textContent  = fmt(draft.totals.gst_total);
@@ -547,6 +593,45 @@
                     invoiceable_type: btn.dataset.type,
                     invoiceable_id: btn.dataset.id
                 });
+            });
+
+            document.getElementById('new-line-item').addEventListener('change', function () {
+                document.getElementById('new-line-description-row').style.display = this.value === 'custom' ? 'flex' : 'none';
+            });
+
+            document.getElementById('add-line-btn').addEventListener('click', function () {
+                const date = document.getElementById('new-line-date').value;
+                const item = document.getElementById('new-line-item').value;
+                const qty  = document.getElementById('new-line-qty').value;
+
+                if (!date || !qty) {
+                    Swal.fire('Missing Information', 'Please choose a date and a quantity.', 'warning');
+                    return;
+                }
+                if (item === 'custom' && !document.getElementById('new-line-description').value.trim()) {
+                    Swal.fire('Missing Description', 'Please describe the custom item.', 'warning');
+                    return;
+                }
+
+                sendDraftAction({
+                    action: 'add_line_item',
+                    delivery_date: date,
+                    item: item,
+                    quantity: qty,
+                    unit_price: document.getElementById('new-line-price').value,
+                    description: document.getElementById('new-line-description').value
+                }).then(data => {
+                    if (data.success) {
+                        document.getElementById('new-line-price').value = '';
+                        document.getElementById('new-line-description').value = '';
+                    }
+                });
+            });
+
+            document.getElementById('line-items-body').addEventListener('click', function (e) {
+                const btn = e.target.closest('.remove-line-btn');
+                if (!btn) return;
+                sendDraftAction({ action: 'remove_line_item', line_item_id: btn.dataset.id });
             });
 
             document.getElementById('add-charge-btn').addEventListener('click', function () {

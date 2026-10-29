@@ -10,6 +10,8 @@ use App\Models\InvoiceFlatCharges;
 use App\Models\InvoiceLineItems;
 use App\Models\InvoiceOrders;
 use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\Product;
 use App\Models\RecurringOrder;
 use App\Mail\ConsolidatedInvoiceMail;
 use App\Services\NovexQuoteService;
@@ -50,6 +52,7 @@ class InvoiceGeneratorController extends Controller
             'drafts'      => $drafts,
             'openDraftId' => $openDraftId,
             'editInvoiceId' => $editInvoiceId,
+            'products'    => Product::orderBy('product_name')->get(['id', 'product_name']),
         ]);
     }
 
@@ -417,6 +420,31 @@ class InvoiceGeneratorController extends Controller
                 }
                 break;
 
+            case 'add_line_item':
+                $request->validate([
+                    'item'          => 'required|string',
+                    'delivery_date' => 'required|date',
+                    'quantity'      => 'required|integer|min:1',
+                    'unit_price'    => 'nullable|numeric|min:0',
+                    'description'   => 'nullable|string|max:255',
+                ]);
+
+                $line = $this->manualLineItem($invoice, $request);
+                if (!$line) {
+                    return response()->json(['success' => false, 'message' => 'Choose a product or fee, and give a description for a custom item.'], 422);
+                }
+                InvoiceLineItems::create($line);
+                break;
+
+            case 'remove_line_item':
+                $request->validate(['line_item_id' => 'required|integer']);
+                // Only lines added by hand (no order behind them) can be removed.
+                InvoiceLineItems::where('invoice_id', $invoice->id)
+                    ->where('id', $request->line_item_id)
+                    ->whereNull('order_id')
+                    ->delete();
+                break;
+
             case 'update_notes':
                 $invoice->update(['notes' => $request->input('notes')]);
                 break;
@@ -782,6 +810,62 @@ class InvoiceGeneratorController extends Controller
 
     // ===================== Helpers =====================
 
+    /**
+     * A line the admin adds by hand: a product, a fee or a custom item, for a chosen date.
+     * It is not tied to an order (order_id null). The price defaults from the customer's
+     * pricing and can be overridden. Returns null when the choice is not valid.
+     */
+    private function manualLineItem(Invoice $invoice, Request $request): ?array
+    {
+        $pricing = CustomerPricing::where('customer_id', $invoice->customer_id)->first();
+        $date    = Carbon::parse($request->delivery_date)->format('Y-m-d');
+        $qty     = (int) $request->quantity;
+        $key     = $request->item;
+
+        $productId = null;
+        if (str_starts_with($key, 'product:')) {
+            $product = Product::find((int) substr($key, 8));
+            if (!$product) {
+                return null;
+            }
+            $item = new OrderItem(['product_id' => $product->id, 'unit_price' => $product->price, 'amount_of_items' => $qty]);
+            $item->setRelation('product', $product);
+            $built       = $this->buildLineItem($item, $pricing, null, $date);
+            $description = $built['description'];
+            $unitPrice   = $built['unit_price'];
+            $productId   = $product->id;
+        } elseif ($key === 'fee:delivery') {
+            $description = 'Delivery';
+            $unitPrice   = ($pricing->delivery_mode ?? CustomerPricing::DELIVERY_NOVEX) === CustomerPricing::DELIVERY_FIXED ? (float) $pricing->delivery_fee : 0.0;
+        } elseif ($key === 'fee:pickup') {
+            $description = 'Pickup Fee';
+            $unitPrice   = (float) ($pricing->pickup_fee ?? 0);
+        } elseif ($key === 'fee:hazmat') {
+            $description = 'Hazmat Fee';
+            $unitPrice   = (float) ($pricing->hazmat_fee ?? 0);
+        } elseif ($key === 'custom' && filled($request->description)) {
+            $description = trim($request->description);
+            $unitPrice   = 0.0;
+        } else {
+            return null;
+        }
+
+        if ($request->filled('unit_price')) {
+            $unitPrice = (float) $request->unit_price;
+        }
+
+        return [
+            'invoice_id'    => $invoice->id,
+            'order_id'      => null,
+            'product_id'    => $productId,
+            'description'   => $description,
+            'quantity'      => $qty,
+            'unit_price'    => $unitPrice,
+            'total_price'   => $unitPrice * $qty,
+            'delivery_date' => $date,
+        ];
+    }
+
     private function buildLineItem($item, $pricing, $orderId, $deliveryDate = null): array
     {
         if ($pricing) {
@@ -995,6 +1079,7 @@ class InvoiceGeneratorController extends Controller
             'id'            => $li->id,
             'order_id'      => $li->order_id,
             'product_id'    => $li->product_id,
+            'manual'        => is_null($li->order_id),
             'description'   => $li->description,
             'quantity'      => $li->quantity,
             'unit_price'    => (float) $li->unit_price,
