@@ -88,7 +88,7 @@
     <tr>
         <th style="text-align:left;">Date</th>
         <th style="text-align:left;">PO#</th>
-        <th style="text-align:right;">Quantity lbs</th>
+        <th style="text-align:center;">Quantity lbs</th>
         <th style="text-align:center;">Item</th>
         <th style="text-align:right;">Price/Unit</th>
         <th style="text-align:right;">Product Cost</th>
@@ -108,7 +108,7 @@
         <tr class="{{ $i === $lastIndex ? 'last' : '' }}">
             <td>{{ $item->delivery_date ? \Carbon\Carbon::parse($item->delivery_date)->format('M d, y') : '' }}</td>
             <td>{{ $item->order->po ?? '' }}</td>
-            <td style="text-align:right;">{{ $item->quantity }}</td>
+            <td style="text-align:center;">{{ $item->quantity }}</td>
             <td style="text-align:center;">{{ $item->description }}</td>
             <td style="text-align:right;">{{ $unitPrice }}</td>
             <td style="text-align:right;">{{ number_format($item->total_price, 2) }}</td>
