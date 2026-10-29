@@ -171,6 +171,13 @@
                                                         title="View Invoice">
                                                     <i class=""></i>
                                                 </button>
+                                                @if($invoice->payment_status !== \App\Models\Invoice::PAID)
+                                                    <button class="btn btn-danger btn-view la la-trash delete-invoice-btn"
+                                                            onclick="deleteInvoice('{{ route('consolidated.invoice.delete', $invoice->id) }}', '{{ $invoice->status == \App\Models\Invoice::STATUS_FINALIZED ? '#' . $invoice->invoice_number : 'this draft' }}')"
+                                                            title="Delete Invoice">
+                                                        <i class=""></i>
+                                                    </button>
+                                                @endif
                                                 @if($invoice->status == \App\Models\Invoice::STATUS_FINALIZED)
                                                     <button class="btn btn-primary btn-view la la-envelope send-invoice-btn"
                                                             onclick="sendInvoiceEmail('{{ route('consolidated.invoice.email', $invoice->id) }}')"
@@ -733,6 +740,36 @@
                 invoiceModalBody.innerHTML = '';
             });
         });
+
+        function deleteInvoice(url, label) {
+            Swal.fire({
+                title: 'Delete invoice?',
+                text: `Delete invoice ${label}? Its orders will be released so they can be invoiced again. This cannot be undone.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e3342f',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it',
+            }).then((result) => {
+                if (!result.isConfirmed) return;
+                fetch(url, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    }
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire('Deleted', data.message, 'success').then(() => window.location.reload());
+                        } else {
+                            Swal.fire('Cannot delete', data.message, 'error');
+                        }
+                    })
+                    .catch(() => Swal.fire('Error', 'Failed to delete the invoice', 'error'));
+            });
+        }
 
         function sendInvoiceEmail(url) {
             Swal.fire({

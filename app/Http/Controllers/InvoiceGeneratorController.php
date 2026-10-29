@@ -603,6 +603,29 @@ class InvoiceGeneratorController extends Controller
     }
 
     /**
+     * Delete an account-holder invoice, draft or finalized, and release its orders and
+     * deliveries so they can be invoiced again (lines, charges, pivot rows and email logs
+     * cascade; orders.invoice_id is set null by the foreign key). A paid invoice is refused
+     * because a recorded payment would be left pointing at nothing.
+     */
+    public function deleteInvoice($invoiceId)
+    {
+        $invoice = Invoice::whereNotNull('customer_id')->findOrFail($invoiceId);
+
+        if ($invoice->payment_status === Invoice::PAID || DB::table('manual_payments')->where('invoice_id', $invoice->id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'This invoice has a recorded payment, so it cannot be deleted.'], 422);
+        }
+        if (Invoice::where('parent_invoice_id', $invoice->id)->exists()) {
+            return response()->json(['success' => false, 'message' => 'Other invoices depend on this one, so it cannot be deleted.'], 422);
+        }
+
+        $label = $invoice->isDraft() ? 'Draft' : '#' . $invoice->invoice_number;
+        DB::transaction(fn () => $invoice->delete());
+
+        return response()->json(['success' => true, 'message' => "Invoice {$label} deleted. Its orders can be invoiced again."]);
+    }
+
+    /**
      * Generate the consolidated invoice PDF.
      */
     public function downloadPdf($invoiceId)
