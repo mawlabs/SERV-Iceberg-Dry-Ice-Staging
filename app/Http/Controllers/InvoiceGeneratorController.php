@@ -721,7 +721,7 @@ class InvoiceGeneratorController extends Controller
             ->setOption('isRemoteEnabled', false)
             ->setOption('chroot', public_path());
 
-        return $pdf->download('invoice-' . $invoice->invoice_number . '.pdf');
+        return $pdf->download($invoice->pdfFileName());
     }
 
     /**

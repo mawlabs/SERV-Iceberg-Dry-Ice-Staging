@@ -39,7 +39,7 @@ class ConsolidatedInvoiceMail extends Mailable
         if (!empty($this->pdfData)) {
             $mail->attachData(
                 $this->pdfData,
-                'invoice-' . ($this->invoice->invoice_number ?? 'consolidated') . '.pdf',
+                $this->invoice->pdfFileName(),
                 ['mime' => 'application/pdf']
             );
         }

@@ -99,6 +99,19 @@ class Invoice extends Model
     }
 
     /**
+     * File name for the invoice PDF: the customer's name and the invoice number, e.g.
+     * "Black & Blue" with invoice 11005 gives BlackandBlue_11005.pdf. Spaces and symbols are
+     * dropped so the name is safe on any system.
+     */
+    public function pdfFileName(): string
+    {
+        $name = \Illuminate\Support\Str::ascii((string) ($this->customer->name ?? ''));
+        $name = preg_replace('/[^A-Za-z0-9]+/', '', str_replace('&', 'and', $name));
+
+        return ($name !== '' ? $name : 'Invoice') . '_' . ($this->invoice_number ?? 'draft') . '.pdf';
+    }
+
+    /**
      * GST for the whole invoice: 5% of the subtotal, rounded once. Summing each line's already
      * rounded GST can drift by a cent or two, so the totals never use the per-line figures.
      */
