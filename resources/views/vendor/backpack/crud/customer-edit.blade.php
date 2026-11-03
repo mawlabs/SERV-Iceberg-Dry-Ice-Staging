@@ -199,10 +199,11 @@
 
             @include('vendor.backpack.crud.partials.customer-orders')
 
-            <div class="card mt-5">
+            {{-- Invoices: what is owed, what is paid, and drafts --}}
+            <div class="card mt-5" id="invoices-section">
                 <div class="row">
                     <div class="col-12 px-4">
-                        <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
                             <h3 class="form-group-heading m-0">
                                 <i class="la la-file-invoice-dollar me-2"></i>  Invoices
                             </h3>
@@ -210,69 +211,24 @@
                                 <i class="la la-plus"></i> Generate New Invoice
                             </a>
                         </div>
-                        <div>
-                            @if($entry->invoices && $entry->invoices->count() > 0)
-                                <table class="table table-bordered table-sm">
-                                    <thead>
-                                    <tr>
-                                        <th>Invoice ID</th>
-                                        <th>Total</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    @foreach($entry->invoices as $invoice)
-                                        <tr>
-                                            <td>{{$invoice->status == \App\Models\Invoice::STATUS_FINALIZED ? $invoice->invoice_number : 'Draft'}}</td>
-                                            <td>{{$invoice->total_amount}}</td>
-                                            <td>{{$invoice->payment_status}}</td>
-                                            <td>
-                                                <button class="btn btn-primary btn-view la la-eye view-invoice-btn"
-                                                        data-url="{{ route('consolidated.invoice.view', $invoice->id) }}"
-                                                        data-invoice-id="{{$invoice->id}}"
-                                                        title="View Invoice">
-                                                    <i class=""></i>
-                                                </button>
-                                                @if($invoice->payment_status !== \App\Models\Invoice::PAID)
-                                                    <button class="btn btn-danger btn-view la la-trash delete-invoice-btn"
-                                                            onclick="deleteInvoice('{{ route('consolidated.invoice.delete', $invoice->id) }}', '{{ $invoice->status == \App\Models\Invoice::STATUS_FINALIZED ? '#' . $invoice->invoice_number : 'this draft' }}')"
-                                                            title="Delete Invoice">
-                                                        <i class=""></i>
-                                                    </button>
-                                                @endif
-                                                @if($invoice->status == \App\Models\Invoice::STATUS_FINALIZED)
-                                                    <button class="btn btn-primary btn-view la la-envelope send-invoice-btn"
-                                                            onclick="sendInvoiceEmail('{{ route('consolidated.invoice.email', $invoice->id) }}')"
-                                                            data-invoice-id="{{$invoice->id}}"
-                                                            title="Mail Invoice">
-                                                        <i class=""></i>
-                                                    </button>
-                                                    <button class="btn btn-secondary btn-view la la-history view-email-history-btn"
-                                                            onclick="viewEmailHistory('{{ route('consolidated.invoice.email-history', $invoice->id) }}')"
-                                                            title="View Send History">
-                                                        <i class=""></i>
-                                                    </button>
-                                                    @if(in_array($invoice->payment_status, [\App\Models\Invoice::PENDING, \App\Models\Invoice::FAILED]))
-                                                        <button class="btn btn-success btn-view la la-check-circle mark-paid-btn"
-                                                                onclick="markInvoicePaid('{{ route('consolidated.invoice.paid', $invoice->id) }}', '#{{ $invoice->invoice_number }}')"
-                                                                title="Payment Done">
-                                                            <i class=""></i>
-                                                        </button>
-                                                        <a class="btn btn-secondary btn-view la la-edit"
-                                                           href="{{ route('admin.invoice-generator.index', ['edit' => $invoice->id]) }}"
-                                                           title="Edit Invoice">
-                                                            <i class=""></i>
-                                                        </a>
-                                                    @endif
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                    </tbody>
-                                </table>
-                            @endif
+
+                        <div class="d-flex flex-wrap gap-4 mb-4">
+                            <div><span class="text-muted">Outstanding:</span> <strong class="text-danger" id="invoices-outstanding-total">${{ number_format($invoiceTotals['outstanding'], 2) }}</strong>
+                                <small class="text-muted">({{ count($outstandingInvoices) }})</small></div>
+                            <div><span class="text-muted">Paid:</span> <strong class="text-success" id="invoices-paid-total">${{ number_format($invoiceTotals['paid'], 2) }}</strong>
+                                <small class="text-muted">({{ count($paidInvoices) }})</small></div>
                         </div>
+
+                        <h5 class="mb-2">Outstanding invoices</h5>
+                        @include('vendor.backpack.crud.partials.customer-invoice-table', ['invoices' => $outstandingInvoices, 'empty' => 'Nothing outstanding.'])
+
+                        <h5 class="mt-4 mb-2">Paid invoices</h5>
+                        @include('vendor.backpack.crud.partials.customer-invoice-table', ['invoices' => $paidInvoices, 'empty' => 'No paid invoices yet.', 'showPaidOn' => true])
+
+                        @if(count($draftInvoices))
+                            <h5 class="mt-4 mb-2">Drafts</h5>
+                            @include('vendor.backpack.crud.partials.customer-invoice-table', ['invoices' => $draftInvoices, 'empty' => ''])
+                        @endif
                     </div>
                 </div>
             </div>

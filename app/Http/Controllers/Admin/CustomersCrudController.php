@@ -110,7 +110,33 @@ class CustomersCrudController extends CrudController
             'entry' => $entry,
             'crud' => $this->crud,
             'pricing' => CustomerPricing::where('customer_id', $entry->id)->first(),
-        ] + $this->orderOverview($entry));
+        ] + $this->orderOverview($entry) + $this->invoiceOverview($entry));
+    }
+
+    /**
+     * The customer's invoices split into what is still owed, what is paid, and drafts,
+     * with the totals shown at the top of the Invoices section.
+     */
+    private function invoiceOverview(Customer $customer): array
+    {
+        $invoices = $customer->invoices
+            ->sortByDesc(fn (Invoice $i) => sprintf('%s-%08d', $i->invoice_date ? Carbon::parse($i->invoice_date)->format('Ymd') : '00000000', $i->id))
+            ->values();
+
+        $drafts      = $invoices->filter(fn (Invoice $i) => $i->status === Invoice::STATUS_DRAFT)->values();
+        $finalized   = $invoices->reject(fn (Invoice $i) => $i->status === Invoice::STATUS_DRAFT);
+        $paid        = $finalized->filter(fn (Invoice $i) => $i->payment_status === Invoice::PAID)->values();
+        $outstanding = $finalized->reject(fn (Invoice $i) => $i->payment_status === Invoice::PAID)->values();
+
+        return [
+            'draftInvoices'       => $drafts,
+            'outstandingInvoices' => $outstanding,
+            'paidInvoices'        => $paid,
+            'invoiceTotals'       => [
+                'outstanding' => (float) $outstanding->sum('total_amount'),
+                'paid'        => (float) $paid->sum('total_amount'),
+            ],
+        ];
     }
 
     /**
