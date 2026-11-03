@@ -98,6 +98,27 @@ class Invoice extends Model
         return (string) ($last < self::FIRST_INVOICE_NUMBER ? self::FIRST_INVOICE_NUMBER : $last + 1);
     }
 
+    /**
+     * GST for the whole invoice: 5% of the subtotal, rounded once. Summing each line's already
+     * rounded GST can drift by a cent or two, so the totals never use the per-line figures.
+     */
+    public function gstTotal(): float
+    {
+        $subTotal = (float) $this->lineItems()->sum('total_price');
+
+        return round($subTotal * InvoiceLineItems::GST_RATE, 2);
+    }
+
+    /** PST for the whole invoice: 7% of the box lines' subtotal, rounded once. */
+    public function pstTotal(): float
+    {
+        $boxTotal = (float) $this->lineItems()
+            ->whereHas('product', fn ($q) => $q->where('unit', 'box'))
+            ->sum('total_price');
+
+        return round($boxTotal * InvoiceLineItems::PST_RATE, 2);
+    }
+
     // Check if this is a recurring invoice
     public function isRecurring(): bool
     {

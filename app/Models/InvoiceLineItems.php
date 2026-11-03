@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class InvoiceLineItems extends Model
 {
+    public const GST_RATE = 0.05;
+    public const PST_RATE = 0.07;
+
     protected $fillable = [
         'invoice_id',
         'order_id',
@@ -35,13 +38,13 @@ class InvoiceLineItems extends Model
      */
     public function getGstAttribute(): float
     {
-        return round(((float) $this->total_price) * 0.05, 2);
+        return round(((float) $this->total_price) * self::GST_RATE, 2);
     }
 
     public function getPstAttribute(): float
     {
         if ($this->product && $this->product->unit === 'box') {
-            return round(((float) $this->total_price) * 0.07, 2);
+            return round(((float) $this->total_price) * self::PST_RATE, 2);
         }
 
         return 0.0;

@@ -702,8 +702,8 @@ class InvoiceGeneratorController extends Controller
         $customer = $invoice->customer;
 
         $subTotal = $invoice->lineItems->sum('total_price');
-        $gstTotal = $invoice->lineItems->sum('gst');
-        $pstTotal = $invoice->lineItems->sum('pst');
+        $gstTotal = $invoice->gstTotal();
+        $pstTotal = $invoice->pstTotal();
         $flatChargesTotal = $invoice->flatCharges->sum('amount');
 
         $pdf = Pdf::loadView('emails.invoice-pdf-consolidated', [
@@ -760,8 +760,8 @@ class InvoiceGeneratorController extends Controller
 
             $invoiceOrders    = InvoiceOrders::where('invoice_id', $invoice->id)->get();
             $subTotal         = $invoice->lineItems->sum('total_price');
-            $gstTotal         = $invoice->lineItems->sum('gst');
-            $pstTotal         = $invoice->lineItems->sum('pst');
+            $gstTotal         = $invoice->gstTotal();
+            $pstTotal         = $invoice->pstTotal();
             $flatChargesTotal = $invoice->flatCharges->sum('amount');
 
             // Render the same PDF used for download, pass raw bytes to the Mailable.
@@ -1046,8 +1046,8 @@ class InvoiceGeneratorController extends Controller
     {
         $lineItems = InvoiceLineItems::with('product')->where('invoice_id', $invoice->id)->get();
         $sub  = $lineItems->sum('total_price');
-        $gst  = $lineItems->sum('gst');
-        $pst  = $lineItems->sum('pst');
+        $gst  = $invoice->gstTotal();
+        $pst  = $invoice->pstTotal();
         $flat = InvoiceFlatCharges::where('invoice_id', $invoice->id)->sum('amount');
         $invoice->update(['total_amount' => round($sub + $gst + $pst + $flat, 2)]);
     }
@@ -1148,8 +1148,8 @@ class InvoiceGeneratorController extends Controller
         ])->values()->all();
 
         $subTotal  = $invoice->lineItems->sum('total_price');
-        $gstTotal  = $invoice->lineItems->sum('gst');
-        $pstTotal  = $invoice->lineItems->sum('pst');
+        $gstTotal  = $invoice->gstTotal();
+        $pstTotal  = $invoice->pstTotal();
         $flatTotal = $invoice->flatCharges->sum('amount');
 
         return [
@@ -1192,8 +1192,8 @@ class InvoiceGeneratorController extends Controller
         $customer = $invoice->customer;
 
         $subTotal = $invoice->lineItems->sum('total_price');
-        $gstTotal = $invoice->lineItems->sum('gst');
-        $pstTotal = $invoice->lineItems->sum('pst');
+        $gstTotal = $invoice->gstTotal();
+        $pstTotal = $invoice->pstTotal();
         $flatChargesTotal = $invoice->flatCharges->sum('amount');
 
         if (request()->ajax()) {

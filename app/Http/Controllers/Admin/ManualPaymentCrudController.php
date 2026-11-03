@@ -389,8 +389,8 @@ class ManualPaymentCrudController extends CrudController
                 'lineItems'        => $invoice->lineItems,
                 'flatCharges'      => $invoice->flatCharges,
                 'subTotal'         => $invoice->lineItems->sum('total_price'),
-                'gstTotal'         => $invoice->lineItems->sum('gst'),
-                'pstTotal'         => $invoice->lineItems->sum('pst'),
+                'gstTotal'         => $invoice->gstTotal(),
+                'pstTotal'         => $invoice->pstTotal(),
                 'flatChargesTotal' => $invoice->flatCharges->sum('amount'),
                 'totalAmount'      => $invoice->total_amount,
             ])->output();
