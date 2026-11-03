@@ -963,12 +963,13 @@ class OrderCrudController extends CrudController
 
         $order = $this->saveOrder($data);
 
-        // Send confirmation email
-        try {
-            Mail::to($order->email)->send(new OrderPlacedMail($order));
-        } catch (\Exception $e) {
-            \Log::error('Failed to send order email: ' . $e->getMessage());
-        }
+        // Disabled: account customers are only emailed when an admin clicks Mail Invoice.
+//        // Send confirmation email
+//        try {
+//            Mail::to($order->email)->send(new OrderPlacedMail($order));
+//        } catch (\Exception $e) {
+//            \Log::error('Failed to send order email: ' . $e->getMessage());
+//        }
 
         return $this->crud->performSaveAction();
     }
