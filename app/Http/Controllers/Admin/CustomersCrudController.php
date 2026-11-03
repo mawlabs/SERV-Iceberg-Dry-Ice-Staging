@@ -34,6 +34,10 @@ class CustomersCrudController extends CrudController
 
     protected function setupListOperation()
     {
+        // Alphabetical by default, showing every customer instead of a page of 10.
+        CRUD::orderBy('name', 'asc');
+        CRUD::setDefaultPageLength(-1);
+
         CRUD::column('name');
         CRUD::column('email');
         CRUD::column('phone');
