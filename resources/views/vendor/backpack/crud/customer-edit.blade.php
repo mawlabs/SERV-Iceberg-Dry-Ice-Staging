@@ -136,6 +136,67 @@
                     </div>
                 </div>
             </form>
+
+            {{-- Pricing: the same rates as the Customer Pricing page, editable here --}}
+            @php
+                $deliveryMode = $pricing->delivery_mode ?? 'novex';
+            @endphp
+            <div class="card mt-5" id="pricing-section">
+                <div class="row">
+                    <div class="col-12 px-4">
+                        <h3 class="form-group-heading m-0 mb-4">
+                            <i class="la la-dollar-sign me-2"></i> Pricing
+                        </h3>
+
+                        @if(session('success'))
+                            <div class="alert alert-success">{{ session('success') }}</div>
+                        @endif
+                        @if(session('error'))
+                            <div class="alert alert-danger">{{ session('error') }}</div>
+                        @endif
+
+                        <form method="POST" action="{{ route('customer-pricing.update', $entry->id) }}" id="pricing_form">
+                            @csrf
+                            <div class="row">
+                                <div class="form-group col-md-3">
+                                    <label for="pricing_ice_price">Ice price <small class="text-muted">$ per lb, pellets and blocks</small></label>
+                                    <input type="number" step="0.001" min="0" class="form-control" id="pricing_ice_price" name="ice_price" value="{{ $pricing->ice_price ?? 0 }}">
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label for="pricing_hazmat_fee">Hazmat fee</label>
+                                    <input type="number" step="0.001" min="0" class="form-control" id="pricing_hazmat_fee" name="hazmat_fee" value="{{ $pricing->hazmat_fee ?? 0 }}">
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label for="pricing_delivery_mode">Delivery</label>
+                                    <select class="form-control" id="pricing_delivery_mode" name="delivery_mode">
+                                        <option value="novex" @selected($deliveryMode === 'novex')>Novex rate</option>
+                                        <option value="fixed" @selected($deliveryMode === 'fixed')>Fixed rate</option>
+                                        <option value="none" @selected($deliveryMode === 'none')>No delivery</option>
+                                    </select>
+                                    <input type="number" step="0.001" min="0.001" class="form-control mt-1" id="pricing_delivery_fee" name="delivery_fee"
+                                           placeholder="Amount" value="{{ $deliveryMode === 'fixed' ? ($pricing->delivery_fee ?? '') : '' }}"
+                                           @if($deliveryMode !== 'fixed') style="display:none" disabled @endif>
+                                </div>
+                                <div class="form-group col-md-3">
+                                    <label for="pricing_pickup_fee">Pickup fee</label>
+                                    <input type="number" step="0.001" min="0" class="form-control" id="pricing_pickup_fee" name="pickup_fee" value="{{ $pricing->pickup_fee ?? 0 }}">
+                                </div>
+                                <div class="form-group col-md-3 mt-3">
+                                    <label for="pricing_other_charges">Other charges</label>
+                                    <input type="number" step="0.001" min="0" class="form-control" id="pricing_other_charges" name="other_charges" value="{{ $pricing->other_charges ?? 0 }}">
+                                </div>
+                            </div>
+                            <div class="mt-3 mb-3">
+                                <button type="submit" class="btn btn-primary">Save Pricing</button>
+                                @if(!$pricing)
+                                    <small class="text-muted ms-2">No custom pricing yet: product default prices and the Novex delivery rate apply.</small>
+                                @endif
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <div class="card mt-5">
                 <div class="row">
                     <div class="col-12 px-4">
@@ -745,6 +806,19 @@
                 invoiceModalBody.innerHTML = '';
             });
         });
+
+        // The fixed delivery amount only shows (and is only submitted) in Fixed mode.
+        (function () {
+            const select = document.getElementById('pricing_delivery_mode');
+            const amount = document.getElementById('pricing_delivery_fee');
+            if (!select || !amount) return;
+            select.addEventListener('change', function () {
+                const fixed = select.value === 'fixed';
+                amount.style.display = fixed ? '' : 'none';
+                amount.disabled = !fixed;
+                amount.required = fixed;
+            });
+        })();
 
         function markInvoicePaid(url, label) {
             Swal.fire({

@@ -105,6 +105,7 @@ class CustomersCrudController extends CrudController
         return view('vendor.backpack.crud.customer-edit', [
             'entry' => $entry,
             'crud' => $this->crud,
+            'pricing' => CustomerPricing::where('customer_id', $entry->id)->first(),
         ]);
     }
 
