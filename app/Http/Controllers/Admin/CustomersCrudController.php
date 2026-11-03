@@ -5,6 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Models\Customer;
 use App\Models\CustomerAddress;
 use App\Models\CustomerPricing;
+use App\Models\Invoice;
+use App\Models\Order;
+use App\Models\RecurringOrder;
+use Carbon\Carbon;
 use App\Models\SupplyLocation;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
@@ -106,7 +110,91 @@ class CustomersCrudController extends CrudController
             'entry' => $entry,
             'crud' => $this->crud,
             'pricing' => CustomerPricing::where('customer_id', $entry->id)->first(),
-        ]);
+        ] + $this->orderOverview($entry));
+    }
+
+    /**
+     * What the customer page shows about orders: standing (recurring) orders, what is
+     * scheduled from today on, and what came before.
+     */
+    private function orderOverview(Customer $customer): array
+    {
+        $today = Carbon::today();
+        $historyLimit = 150;
+
+        $summary = fn (Order $o) => $o->items->map(fn ($i) => rtrim(rtrim(number_format((float) $i->amount_of_items, 2, '.', ''), '0'), '.') . ' ' . ($i->product->product_name ?? 'item'))->implode(', ');
+
+        $standing = Order::where('customer_id', $customer->id)
+            ->where('recurring', Order::RECURRING)
+            ->with('items.product')
+            ->get();
+
+        // The next open delivery of each standing order.
+        $nextByOrder = RecurringOrder::whereIn('order_id', $standing->pluck('id'))
+            ->where('status', 'open')
+            ->whereDate('scheduled_delivery_date', '>=', $today)
+            ->orderBy('scheduled_delivery_date')
+            ->get()
+            ->groupBy('order_id')
+            ->map(fn ($g) => $g->first()->scheduled_delivery_date);
+
+        $standingRows = $standing
+            ->sortBy(fn ($o) => [$o->status === Order::VALID ? 0 : 1, Carbon::parse($o->delivery_date)->dayOfWeekIso])
+            ->map(fn (Order $o) => [
+                'id'       => $o->id,
+                'day'      => Carbon::parse($o->delivery_date)->format('l') . 's',
+                'time'     => Carbon::parse($o->delivery_date)->format('g:i A'),
+                'summary'  => $summary($o),
+                'method'   => $o->pickup_delivery,
+                'po'       => $o->po,
+                'status'   => $o->status === Order::VALID ? 'Active' : 'Discontinued',
+                'active'   => $o->status === Order::VALID,
+                'next'     => isset($nextByOrder[$o->id]) ? Carbon::parse($nextByOrder[$o->id])->format('Y-m-d') : null,
+            ])->values()->all();
+
+        // One-time orders and single deliveries of standing orders, side by side.
+        $oneTime = Order::where('customer_id', $customer->id)
+            ->where('recurring', '!=', Order::RECURRING)
+            ->with('items.product')
+            ->get()
+            ->map(fn (Order $o) => [
+                'date' => Carbon::parse($o->delivery_date), 'type' => 'One-time', 'summary' => $summary($o),
+                'method' => $o->pickup_delivery, 'po' => $o->po, 'status' => $o->status, 'invoice_id' => $o->invoice_id,
+            ]);
+
+        $deliveries = RecurringOrder::whereIn('order_id', $standing->pluck('id'))
+            ->get()
+            ->map(function (RecurringOrder $r) use ($standing, $summary) {
+                $parent = $standing->firstWhere('id', $r->order_id);
+
+                return [
+                    'date' => Carbon::parse($r->scheduled_delivery_date)->setTimeFrom(Carbon::parse($parent->delivery_date)),
+                    'type' => 'Standing', 'summary' => $summary($parent),
+                    'method' => $parent->pickup_delivery, 'po' => $parent->po, 'status' => $r->status, 'invoice_id' => $r->invoice_id,
+                ];
+            });
+
+        $all = $oneTime->concat($deliveries);
+
+        $scheduled = $all
+            ->filter(fn ($r) => $r['date']->gte($today) && in_array($r['status'], ['valid', 'open'], true))
+            ->sortBy(fn ($r) => $r['date']->timestamp)->values();
+
+        $past = $all->filter(fn ($r) => $r['date']->lt($today));
+        $history = $past->sortByDesc(fn ($r) => $r['date']->timestamp)->take($historyLimit)->values();
+
+        $invoiceNumbers = Invoice::finalized()
+            ->whereIn('id', $scheduled->concat($history)->pluck('invoice_id')->filter()->unique())
+            ->pluck('invoice_number', 'id');
+        $withInvoice = fn ($rows) => $rows->map(fn ($r) => $r + ['invoice' => $invoiceNumbers[$r['invoice_id']] ?? null])->all();
+
+        return [
+            'standingOrders'   => $standingRows,
+            'scheduledOrders'  => $withInvoice($scheduled),
+            'orderHistory'     => $withInvoice($history),
+            'historyTotal'     => $past->count(),
+            'historyLimit'     => $historyLimit,
+        ];
     }
 
     public function updateFromView($id, Request $request)

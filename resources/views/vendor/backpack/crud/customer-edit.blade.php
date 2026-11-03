@@ -197,6 +197,8 @@
                 </div>
             </div>
 
+            @include('vendor.backpack.crud.partials.customer-orders')
+
             <div class="card mt-5">
                 <div class="row">
                     <div class="col-12 px-4">
