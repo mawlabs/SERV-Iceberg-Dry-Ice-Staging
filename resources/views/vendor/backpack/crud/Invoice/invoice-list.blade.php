@@ -1,14 +1,44 @@
 @extends(backpack_view('blank'))
 
 @section('header')
-    <section class="container-fluid header">
-        <h2 class="title text-capitalize">
+    <section class="container-fluid header d-flex justify-content-between align-items-center">
+        <h2 class="title text-capitalize m-0">
             Invoices
         </h2>
-        <small>
-            <a href="{{ route('admin.invoice-generator.index') }}" class="btn btn-manual btn-sm mx-3"><i class="la la-plus mx-2"></i> Generate New Invoice</a>
-        </small>
+        <a href="{{ route('admin.invoice-generator.index') }}" class="btn btn-add">
+            <i class="la la-plus me-1"></i> Generate New Invoice
+        </a>
     </section>
+@endsection
+
+@section('after_styles')
+    <style>
+        .btn-add {
+            background-color: var(--tblr-primary);
+            border: 1px solid var(--tblr-primary);
+            color: var(--tblr-light);
+            border-radius: 10px;
+            box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+            font-weight: 600;
+        }
+        .btn-add:hover {
+            background-color: #0246a5;
+            color: var(--tblr-light);
+        }
+        .invoice-actions .btn {
+            padding: 6px 12px;
+            font-size: 14px;
+            margin-left: 2px;
+        }
+        .invoice-actions .btn i {
+            font-size: 18px;
+            line-height: 1;
+            vertical-align: middle;
+        }
+        /* keep the invoice preview above the page and its dark backdrop */
+        .modal { z-index: 1050 !important; }
+        .modal-backdrop { z-index: 1040 !important; }
+    </style>
 @endsection
 
 @section('content')
@@ -112,37 +142,37 @@
                             <td class="small">
                                 {{ $invoice->last_emailed_at ? \Carbon\Carbon::parse($invoice->last_emailed_at)->format('Y-m-d H:i') : ($isDraft ? '' : 'Never') }}
                             </td>
-                            <td class="text-end text-nowrap">
-                                <button type="button" class="btn btn-sm btn-primary view-invoice-btn" title="View invoice"
+                            <td class="text-end text-nowrap invoice-actions">
+                                <button type="button" class="btn btn-primary view-invoice-btn" title="View invoice"
                                         data-url="{{ route('consolidated.invoice.view', $invoice->id) }}"
                                         data-invoice-id="{{ $invoice->id }}" data-label="{{ $label }}">
                                     <i class="la la-eye"></i>
                                 </button>
                                 @if($isDraft)
-                                    <a class="btn btn-sm btn-secondary" title="Open draft in the generator"
+                                    <a class="btn btn-secondary" title="Open draft in the generator"
                                        href="{{ route('admin.invoice-generator.index', ['draft' => $invoice->id]) }}"><i class="la la-edit"></i></a>
                                 @else
-                                    <a class="btn btn-sm btn-success" title="Download PDF"
+                                    <a class="btn btn-success" title="Download PDF"
                                        href="{{ route('admin.invoice-generator.pdf', $invoice->id) }}"><i class="la la-download"></i></a>
-                                    <button type="button" class="btn btn-sm btn-primary" title="Mail invoice"
+                                    <button type="button" class="btn btn-primary" title="Mail invoice"
                                             onclick="sendInvoiceEmail('{{ route('consolidated.invoice.email', $invoice->id) }}', '{{ $label }}')">
                                         <i class="la la-envelope"></i>
                                     </button>
-                                    <button type="button" class="btn btn-sm btn-secondary" title="View send history"
+                                    <button type="button" class="btn btn-secondary" title="View send history"
                                             onclick="viewEmailHistory('{{ route('consolidated.invoice.email-history', $invoice->id) }}')">
                                         <i class="la la-history"></i>
                                     </button>
                                 @endif
                                 @if($unpaid)
-                                    <button type="button" class="btn btn-sm btn-success" title="Payment done"
+                                    <button type="button" class="btn btn-success" title="Payment done"
                                             onclick="markInvoicePaid('{{ route('consolidated.invoice.paid', $invoice->id) }}', '{{ $label }}')">
                                         <i class="la la-check-circle"></i>
                                     </button>
-                                    <a class="btn btn-sm btn-secondary" title="Edit invoice"
+                                    <a class="btn btn-secondary" title="Edit invoice"
                                        href="{{ route('admin.invoice-generator.index', ['edit' => $invoice->id]) }}"><i class="la la-pencil"></i></a>
                                 @endif
                                 @if(!$isPaid)
-                                    <button type="button" class="btn btn-sm btn-danger" title="Delete invoice"
+                                    <button type="button" class="btn btn-danger" title="Delete invoice"
                                             onclick="deleteInvoice('{{ route('consolidated.invoice.delete', $invoice->id) }}', '{{ $label }}')">
                                         <i class="la la-trash"></i>
                                     </button>
@@ -192,6 +222,9 @@
             if (window.jQuery && jQuery.fn.select2) {
                 jQuery('#f-customer').select2({ width: '100%', allowClear: true, placeholder: 'All customers' });
             }
+
+            // A modal inside the page wrapper ends up under its own backdrop; hang it off <body>.
+            document.body.appendChild(document.getElementById('invoiceModal'));
 
             const invoiceModal     = new bootstrap.Modal(document.getElementById('invoiceModal'));
             const invoiceModalBody = document.getElementById('invoiceModalBody');
