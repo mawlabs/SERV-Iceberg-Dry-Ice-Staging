@@ -57,6 +57,69 @@ class InvoiceGeneratorController extends Controller
     }
 
     /**
+     * Every account-holder invoice in one place, filterable by customer, status, date and
+     * invoice number. Finalized invoices by default; drafts have their own filter.
+     */
+    public function invoiceList(Request $request)
+    {
+        $status = $request->input('status', 'all');
+
+        $query = Invoice::query()
+            ->whereNotNull('customer_id')
+            ->whereNull('invoiceable_type') // account-holder invoices, not online checkout ones
+            ->addSelect(['invoices.*', 'last_emailed_at' => InvoiceEmailLog::select('created_at')
+                ->whereColumn('invoice_id', 'invoices.id')
+                ->where('status', InvoiceEmailLog::STATUS_SENT)
+                ->latest()->limit(1)])
+            ->with('customer');
+
+        match ($status) {
+            'drafts'      => $query->draft(),
+            'outstanding' => $query->finalized()->whereIn('payment_status', [Invoice::PENDING, Invoice::FAILED]),
+            'paid'        => $query->finalized()->where('payment_status', Invoice::PAID),
+            default       => $query->finalized(),
+        };
+
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+        if ($request->filled('from')) {
+            $query->whereDate('invoice_date', '>=', $request->from);
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('invoice_date', '<=', $request->to);
+        }
+        if ($request->filled('q')) {
+            $term = trim($request->q);
+            $query->where(function ($q) use ($term) {
+                $q->where('invoice_number', 'like', '%' . $term . '%')
+                  ->orWhereHas('customer', fn ($c) => $c->where('name', 'like', '%' . $term . '%'));
+            });
+        }
+
+        $summary = [
+            'count'       => (clone $query)->count(),
+            'total'       => (float) (clone $query)->sum('total_amount'),
+            'outstanding' => (float) (clone $query)->whereIn('payment_status', [Invoice::PENDING, Invoice::FAILED])->sum('total_amount'),
+        ];
+
+        $invoices = $query->orderByDesc('invoice_date')->orderByDesc('id')->paginate(100)->withQueryString();
+
+        return view('vendor.backpack.crud.Invoice.invoice-list', [
+            'invoices'  => $invoices,
+            'summary'   => $summary,
+            'customers' => Customer::orderBy('name')->get(['id', 'name']),
+            'filters'   => [
+                'status'      => $status,
+                'customer_id' => $request->input('customer_id'),
+                'from'        => $request->input('from'),
+                'to'          => $request->input('to'),
+                'q'           => $request->input('q'),
+            ],
+        ]);
+    }
+
+    /**
      * Step 1: Admin selects customer + date range.
      * Pulls eligible orders/recurring orders, applies customer pricing,
      * builds a draft structure, and stores it (currently in session).

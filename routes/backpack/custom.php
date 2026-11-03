@@ -154,6 +154,7 @@ Route::group([
 
     Route::prefix('invoice-generator')->group(function () {
         Route::get('/', [InvoiceGeneratorController::class, 'index'])->name('admin.invoice-generator.index');
+        Route::get('/list', [InvoiceGeneratorController::class, 'invoiceList'])->name('admin.invoice-generator.list');
         Route::post('/draft', [InvoiceGeneratorController::class, 'buildDraft'])->name('admin.invoice-generator.draft');
         Route::post('/draft/from-order', [InvoiceGeneratorController::class, 'buildDraftFromOrder'])->name('admin.invoice-generator.draft.from-order');
         Route::post('/draft/update', [InvoiceGeneratorController::class, 'updateDraft'])->name('admin.invoice-generator.draft.update');

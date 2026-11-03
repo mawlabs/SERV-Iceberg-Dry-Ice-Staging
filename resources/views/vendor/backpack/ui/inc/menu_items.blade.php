@@ -21,6 +21,7 @@
 {{--  <x-backpack::menu-dropdown-item title="Ice Orders" icon="la la-snowflake" :link="backpack_url('ice-orders')" />--}}
     <x-backpack::menu-dropdown-item title="Orders" icon="la la-shopping-cart" :link="backpack_url('orders')" />
     <x-backpack::menu-dropdown-item title="Invoicing" icon="la la-file-invoice-dollar" :link="backpack_url('invoice-generator')" />
+    <x-backpack::menu-dropdown-item title="Invoices" icon="la la-list-alt" :link="backpack_url('invoice-generator/list')" />
   <x-backpack::menu-dropdown-item title="Products" icon="la la-product-hunt" :link="backpack_url('product')" />
   <x-backpack::menu-dropdown-item title="Variables" icon="la la-cogs" :link="backpack_url('variables')" />
   <x-backpack::menu-dropdown-item title="Customers" icon="la la-users" :link="backpack_url('customers')" />
