@@ -88,7 +88,7 @@
                             <td><strong>{{ $isDraft ? 'Draft' : $invoice->invoice_number }}</strong></td>
                             <td>
                                 @if($invoice->customer)
-                                    <a href="{{ backpack_url('customers/' . $invoice->customer_id . '/edit') }}">{{ $invoice->customer->name }}</a>
+                                    <a href="{{ route('customer.view', $invoice->customer_id) }}">{{ $invoice->customer->name }}</a>
                                 @endif
                             </td>
                             <td>{{ $invoice->invoice_date ? \Carbon\Carbon::parse($invoice->invoice_date)->format('Y-m-d') : '' }}</td>
