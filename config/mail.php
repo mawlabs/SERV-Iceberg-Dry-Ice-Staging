@@ -113,4 +113,10 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    /*
+    | Every outgoing email is copied (Cc) to this address so the admin keeps a copy.
+    | Leave ADMIN_EMAIL empty to turn the copy off.
+    */
+    'admin_cc' => env('ADMIN_EMAIL'),
+
 ];

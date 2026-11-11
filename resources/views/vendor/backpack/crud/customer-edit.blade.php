@@ -838,11 +838,21 @@
             });
         }
 
-        function sendInvoiceEmail(url) {
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function sendInvoiceEmail(btn) {
+            const { url, label, email } = btn.dataset;
             Swal.fire({
-                title: 'Are you sure?',
-                text: "You want to send this incoice to the customer.",
-                icon: 'warning',
+                title: 'Send invoice?',
+                html: email
+                    ? `Email invoice ${escapeHtml(label)} to<br><strong>${escapeHtml(email)}</strong>?<br><small class="text-muted">A copy also goes to the admin address.</small>`
+                    : `<span style="color:#c0392b;">This customer has no email address on file.</span>`,
+                icon: email ? 'warning' : 'error',
+                showConfirmButton: !!email,
                 showCancelButton: true,
                 confirmButtonColor: '#e3342f',
                 cancelButtonColor: '#6c757d',

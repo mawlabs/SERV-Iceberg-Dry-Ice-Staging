@@ -155,7 +155,10 @@
                                     <a class="btn btn-success" title="Download PDF"
                                        href="{{ route('admin.invoice-generator.pdf', $invoice->id) }}"><i class="la la-download"></i></a>
                                     <button type="button" class="btn btn-primary" title="Mail invoice"
-                                            onclick="sendInvoiceEmail('{{ route('consolidated.invoice.email', $invoice->id) }}', '{{ $label }}')">
+                                            onclick="sendInvoiceEmail(this)"
+                                            data-url="{{ route('consolidated.invoice.email', $invoice->id) }}"
+                                            data-label="{{ $label }}"
+                                            data-email="{{ $invoice->customer->email ?? '' }}">
                                         <i class="la la-envelope"></i>
                                     </button>
                                     <button type="button" class="btn btn-secondary" title="View send history"
@@ -301,11 +304,15 @@
             });
         }
 
-        function sendInvoiceEmail(url, label) {
+        function sendInvoiceEmail(btn) {
+            const { url, label, email } = btn.dataset;
             Swal.fire({
                 title: 'Send invoice?',
-                text: `Email invoice ${label} to the customer?`,
-                icon: 'warning',
+                html: email
+                    ? `Email invoice ${escapeHtml(label)} to<br><strong>${escapeHtml(email)}</strong>?<br><small class="text-muted">A copy also goes to the admin address.</small>`
+                    : `<span style="color:#c0392b;">This customer has no email address on file.</span>`,
+                icon: email ? 'warning' : 'error',
+                showConfirmButton: !!email,
                 showCancelButton: true,
                 confirmButtonColor: '#e3342f',
                 cancelButtonColor: '#6c757d',
@@ -313,6 +320,12 @@
             }).then(result => {
                 if (result.isConfirmed) invoiceAction(url, 'POST', 'Sent!', 'Error');
             });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function viewEmailHistory(url) {

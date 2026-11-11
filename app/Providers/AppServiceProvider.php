@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Events\MessageSending;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,6 +25,32 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureRateLimiting();
+        $this->copyAdminOnOutgoingMail();
+    }
+
+    /**
+     * Cc the admin address (ADMIN_EMAIL) on every outgoing email. Skipped when the admin
+     * is already a recipient, so the daily summary and similar mails don't arrive twice.
+     */
+    protected function copyAdminOnOutgoingMail(): void
+    {
+        Event::listen(MessageSending::class, function (MessageSending $event) {
+            $admin = trim((string) config('mail.admin_cc'));
+            if ($admin === '' || !filter_var($admin, FILTER_VALIDATE_EMAIL)) {
+                return;
+            }
+
+            $message = $event->message;
+            foreach ([$message->getTo(), $message->getCc(), $message->getBcc()] as $list) {
+                foreach ($list as $address) {
+                    if (strcasecmp($address->getAddress(), $admin) === 0) {
+                        return;
+                    }
+                }
+            }
+
+            $message->addCc($admin);
+        });
     }
 
     /**

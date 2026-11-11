@@ -59,7 +59,10 @@
                         @endif
                         @if($invoice->status == \App\Models\Invoice::STATUS_FINALIZED)
                             <button class="btn btn-primary btn-view la la-envelope send-invoice-btn"
-                                    onclick="sendInvoiceEmail('{{ route('consolidated.invoice.email', $invoice->id) }}')"
+                                    onclick="sendInvoiceEmail(this)"
+                                    data-url="{{ route('consolidated.invoice.email', $invoice->id) }}"
+                                    data-label="#{{ $invoice->invoice_number }}"
+                                    data-email="{{ $invoice->customer->email ?? ($entry->email ?? '') }}"
                                     data-invoice-id="{{$invoice->id}}"
                                     title="Mail Invoice">
                                 <i class=""></i>
