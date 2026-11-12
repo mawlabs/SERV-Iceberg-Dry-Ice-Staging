@@ -227,14 +227,17 @@ class CustomersCrudController extends CrudController
     {
         $this->crud->hasAccessOrFail('update');
 
+        // Only the name is required. Imported customers often lack a phone, email or address,
+        // so everything else is optional and whatever is provided gets saved.
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:customers,email,' . $id,
-            'phone' => 'required|string|max:20',
-            'address' => 'required|string|max:255',
-            'city' => 'required|string|max:100',
-            'postal_code' => 'required|string|max:20',
-            'province' => 'required|in:BC,AB',
+            'email' => 'nullable|email|max:255|unique:customers,email,' . $id,
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:100',
+            'postal_code' => 'nullable|string|max:20',
+            'province' => 'nullable|in:BC,AB',
+            'supply_location_id' => 'nullable|exists:' . (new SupplyLocation)->getTable() . ',id',
             'attention' => 'nullable|string|max:255',
         ]);
 
@@ -244,17 +247,27 @@ class CustomersCrudController extends CrudController
             $customer = Customer::findOrFail($id);
 
             // Update customer inline address fields (for backward compatibility)
+            // address, city and postal_code are NOT NULL columns, so a blank is stored as ''.
             $customer->update([
-                'name' => $request->name,
-                'email' => $request->email,
-                'phone' => $request->phone,
-                'address' => $request->address,
-                'city' => $request->city,
-                'postal_code' => $request->postal_code,
-                'province' => $request->province,
-                'supply_location_id' => $request->supply_location_id,
+                'name' => trim($request->name),
+                'email' => filled($request->email) ? trim($request->email) : null,
+                'phone' => filled($request->phone) ? trim($request->phone) : null,
+                'address' => trim((string) $request->address),
+                'city' => trim((string) $request->city),
+                'postal_code' => trim((string) $request->postal_code),
+                'province' => filled($request->province) ? $request->province : null,
+                'supply_location_id' => filled($request->supply_location_id) ? $request->supply_location_id : null,
                 'attention' => filled($request->attention) ? trim($request->attention) : null,
             ]);
+
+            // The default address row needs all of its fields, so only the provided ones are
+            // written to an existing row, and a new row is created only when the address is complete.
+            $addressFields = array_filter([
+                'address' => trim((string) $request->address),
+                'city' => trim((string) $request->city),
+                'postal_code' => trim((string) $request->postal_code),
+                'province' => $request->province,
+            ], fn ($value) => filled($value));
 
             // Update or create default address in customer_addresses table
             $defaultAddress = CustomerAddress::where('customer_id', $customer->id)
@@ -263,22 +276,13 @@ class CustomersCrudController extends CrudController
                 ->first();
 
             if ($defaultAddress) {
-                // Update existing default address
-                $defaultAddress->update([
-                    'address' => $request->address,
-                    'city' => $request->city,
-                    'postal_code' => $request->postal_code,
-                    'province' => $request->province,
-                ]);
-            } else {
-                // Create new default address if none exists
-                CustomerAddress::create([
+                if ($addressFields) {
+                    $defaultAddress->update($addressFields);
+                }
+            } elseif (count($addressFields) === 4) {
+                CustomerAddress::create($addressFields + [
                     'customer_id' => $customer->id,
                     'address_label' => 'Primary Address',
-                    'address' => $request->address,
-                    'city' => $request->city,
-                    'postal_code' => $request->postal_code,
-                    'province' => $request->province,
                     'country' => 'Canada',
                     'is_default' => 1,
                     'is_active' => 1,
@@ -292,8 +296,9 @@ class CustomersCrudController extends CrudController
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Customer update failed (customer ' . $id . '): ' . $e->getMessage());
             \Alert::error('Failed to update customer: ' . $e->getMessage())->flash();
-            return back()->withInput();
+            return back()->withInput()->with('customer_error', 'The customer could not be saved: ' . $e->getMessage());
         }
     }
 

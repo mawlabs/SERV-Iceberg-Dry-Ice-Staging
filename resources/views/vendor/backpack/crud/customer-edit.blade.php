@@ -50,16 +50,15 @@
                             <div class="form-group col-md-4">
                                 <label for="email">Email</label>
                                 <input type="email" class="form-control" id="email" name="email"
-                                       value="{{ old('email', $entry->email ?? '') }}" placeholder="Email" required>
+                                       value="{{ old('email', $entry->email ?? '') }}" placeholder="Email">
                             </div>
 
                             <div class="form-group col-md-4">
                                 <label for="phone">Phone</label>
                                 <input type="text" class="form-control" id="phone" name="phone"
-                                       pattern="^\+?[0-9]{10}$"
                                        oninput="this.value = this.value.replace(/[^\d]/g, '').slice(0, 10)"
                                        maxlength="10"
-                                       value="{{ old('phone', $entry->phone ?? '') }}" placeholder="10 digits only" required>
+                                       value="{{ old('phone', $entry->phone ?? '') }}" placeholder="10 digits only">
                             </div>
 
                             <div class="form-group col-md-4">
@@ -75,24 +74,24 @@
                             <div class="form-group col-md-4">
                                 <label for="address">Address</label>
                                 <input type="text" class="form-control" id="address" name="address"
-                                       value="{{ old('address', $entry->address ?? '') }}" placeholder="Address" required>
+                                       value="{{ old('address', $entry->address ?? '') }}" placeholder="Address">
                             </div>
 
                             <div class="form-group col-md-4">
                                 <label for="city">City</label>
                                 <input type="text" class="form-control" id="city" name="city"
-                                       value="{{ old('city', $entry->city ?? '') }}" placeholder="City" required>
+                                       value="{{ old('city', $entry->city ?? '') }}" placeholder="City">
                             </div>
 
                             <div class="form-group col-md-4">
                                 <label for="postal_code">Postal Code</label>
                                 <input type="text" class="form-control" id="postal_code" name="postal_code"
-                                       value="{{ old('postal_code', $entry->postal_code ?? '') }}" placeholder="Postal Code" required>
+                                       value="{{ old('postal_code', $entry->postal_code ?? '') }}" placeholder="Postal Code">
                             </div>
 
                             <div class="form-group col-md-4">
                                 <label for="province">Province</label>
-                                <select class="form-control" id="province" name="province" required>
+                                <select class="form-control" id="province" name="province">
                                     <option value="">-- Select Province --</option>
                                     <option value="BC" {{ old('province', $entry->province ?? '') == 'BC' ? 'selected' : '' }}>BC</option>
                                     <option value="AB" {{ old('province', $entry->province ?? '') == 'AB' ? 'selected' : '' }}>AB</option>
@@ -111,7 +110,7 @@
                             @endphp
                             <div class="form-group col-md-4">
                                 <label for="supply_location_id">Supply Location</label>
-                                <select class="form-control" id="supply_location_id" name="supply_location_id" required>
+                                <select class="form-control" id="supply_location_id" name="supply_location_id">
                                     <option value="">-- Select Supply Location --</option>
 
                                     @foreach($supplyLocations as $location)
@@ -509,12 +508,25 @@
             document.querySelector(".btn-submission").addEventListener("click", async function (e) {
                 e.preventDefault();
 
+                if (!document.getElementById("name").value.trim()) {
+                    Swal.fire('Name required', 'Please enter the customer name before saving.', 'error');
+                    return;
+                }
+
                 const address = document.getElementById("address").value.trim();
                 const city = document.getElementById("city").value.trim();
                 const province = document.getElementById("province").value.trim();
                 const postal = document.getElementById("postal_code").value.trim();
 
-                const result = await validateAddress({ address, city, province, postal });
+                // The address check is advisory only: if Google is unreachable or rejects the
+                // key it must never stop the customer from being saved.
+                try {
+                    if (address && city && province && postal) {
+                        await validateAddress({ address, city, province, postal });
+                    }
+                } catch (err) {
+                    console.warn('Address validation skipped:', err);
+                }
 
                 // if (result.result.verdict.possibleNextAction === "FIX" || result.result.verdict.hasUnconfirmedComponents) {
                 //     Swal.fire({
@@ -546,6 +558,24 @@
             });
             return await response.json();
         }
+
+        // Show anything the server rejected when saving the customer.
+        @php
+            $saveErrors = $errors->any() ? $errors->all() : [];
+            if (session('customer_error')) {
+                $saveErrors[] = session('customer_error');
+            }
+        @endphp
+        @if(count($saveErrors))
+        document.addEventListener('DOMContentLoaded', function () {
+            Swal.fire({
+                title: 'Customer not saved',
+                icon: 'error',
+                html: {!! json_encode('<ul style="text-align:left;margin:0;padding-left:1.2em;">' . collect($saveErrors)->map(fn ($m) => '<li>' . e($m) . '</li>')->implode('') . '</ul>') !!},
+                confirmButtonColor: '#d33',
+            });
+        });
+        @endif
 
         function confirmDelete() {
             Swal.fire({
